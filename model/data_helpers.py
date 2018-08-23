@@ -4,18 +4,28 @@ import numpy as np
 
 class BucketedDataIterator(object):
     def __init__(self, df, num_buckets=10):
+        """
+        
+        :param df:  dataFrame（pandas.read_csv()）
+        :param num_buckets: 桶的数量（近似长度的句子在一个桶里）
+        """
         self.df = df
         self.total = len(df)
-        # 按照句子长度排序：
+        # 将语料按照句子长度排序：
         df_sort = df.sort_values('length').reset_index(drop=True)
-        self.size = self.total / num_buckets
+        # 每个桶的数据数量：
+        self.size = self.total // num_buckets
+        print("->bucket size: ", self.size)
         self.dfs = []
         for bucket in range(num_buckets - 1):
+            # 将数据划分为一个一个桶，保存在 self.dfs 列表中
             self.dfs.append(df_sort.ix[bucket * self.size: (bucket + 1) * self.size - 1])
+        #  最后一个桶的数据：
         self.dfs.append(df_sort.ix[(num_buckets - 1) * self.size:])
         self.num_buckets = num_buckets
         
         # cursor[i] will be the cursor for the ith bucket
+        # 桶内指针，指向下一个 batch 的起始数据
         self.cursor = np.array([0] * num_buckets)
         self.pos = 0
         self.shuffle()
@@ -37,21 +47,45 @@ class BucketedDataIterator(object):
         :param classifier: 是否返回分类（用于对抗训练）
         :return:
         """
+        
+        def nextPowerOf2(n):
+            count = 0
+            # First n in the below
+            # condition is for the
+            # case where n is 0
+            if (n and not (n & (n - 1))):
+                return n
+            while (n != 0):
+                n >>= 1
+                count += 1
+            return 1 << count
+        
+        # 如果 batch 的大小超过了桶的最大大小，就重置 batch size 为最接近桶的 size的2的幂数
+        if batch_size > self.size:
+            vaild_size = nextPowerOf2(self.size)
+            if vaild_size > self.size:
+                vaild_size = vaild_size // 2
+            batch_size = vaild_size
+        
         if np.any(self.cursor + batch_size + 1 > self.size):
+            # 如果 任何一个桶内 剩余数据不够一个 batch size，就 shuffle 桶，重置桶的指针位置
+            # 注意是 任何一个桶！！
             self.epochs += 1
             self.shuffle()
-        
+        # 随机选择一个桶
         i = np.random.randint(0, self.num_buckets)
-        
+        # 在随机选择的桶中，取出一个 batch 的数据
         res = self.dfs[i].ix[self.cursor[i]:self.cursor[i] + batch_size - 1]
         # words = map(lambda x: map(int, x.split("||")), res['words'].tolist())
         # tags = map(lambda x: map(int, x.split("||")), res['tags'].tolist())
+        # 将 words、tags 转化为 int 数值
         words = [[int(x) for x in y.split(',')] for y in res['words'].tolist()]
         tags = [[int(x) for x in y.split(',')] for y in res['tags'].tolist()]
-        
+        # 指针前进
         self.cursor[i] += batch_size
         
         # Pad sequences with 0s so they are all the same length
+        # 得到最大长度：
         maxlen = max(res['length'])
         if bigram:
             # why * 9 ??
@@ -59,6 +93,7 @@ class BucketedDataIterator(object):
             for i, x_i in enumerate(x):
                 x_i[:res['length'].values[i] * 9] = words[i]
         else:
+            # padding 数据到最大长度（补0）
             x = np.zeros([batch_size, maxlen], dtype=np.int32)
             for i, x_i in enumerate(x):
                 x_i[:res['length'].values[i]] = words[i]
@@ -88,7 +123,7 @@ class BucketedDataIterator(object):
         # tags = map(lambda x: map(int, x.split(",")), res['tags'].tolist())
         words = [[int(x) for x in y.split(',')] for y in res['words'].tolist()]
         tags = [[int(x) for x in y.split(',')] for y in res['tags'].tolist()]
-
+        
         self.pos += batch_size
         maxlen = max(res['length'])
         if bigram:

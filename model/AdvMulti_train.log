@@ -211,3 +211,7 @@
 2018-08-23 17:50:39,347 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_4
 2018-08-23 17:50:39,347 INFO -----------Shared Train ends-------------
 2018-08-23 17:50:40,716 INFO >>>>>>Finally,saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/shared_train_done after epochs:20
+2018-08-23 19:46:34,846 INFO --------------------------------------------------
+2018-08-23 19:46:58,515 INFO -------------train starts:1808231946--------------
+2018-08-23 19:48:26,846 INFO --------------------------------------------------
+2018-08-23 19:48:52,209 INFO -------------train starts:1808231948--------------

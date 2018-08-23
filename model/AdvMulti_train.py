@@ -44,9 +44,9 @@ parser.add_argument('--adv_weight', default=0.06, type=float)
 parser.add_argument('--clip', default=5, type=int)
 
 # Training parameters
-parser.add_argument('--batch_size', default=10, type=int)
-parser.add_argument('--batch_size_big', default=10, type=int)
-parser.add_argument('--batch_size_huge', default=10, type=int)
+parser.add_argument('--batch_size', default=64, type=int)
+parser.add_argument('--batch_size_big', default=64, type=int)
+parser.add_argument('--batch_size_huge', default=64, type=int)
 # step
 parser.add_argument('--num_epochs', default=20, type=int)
 parser.add_argument('--num_epochs_private', default=10, type=int)
