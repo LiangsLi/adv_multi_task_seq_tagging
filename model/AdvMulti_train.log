@@ -139,3 +139,75 @@
 2018-08-23 16:01:20,706 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231559/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231559/checkpoints/task_private_4
 2018-08-23 16:01:20,706 INFO -----------Shared Train ends-------------
 2018-08-23 16:01:22,118 INFO >>>>>>Finally,saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231559/checkpoints/shared_train_done after epochs:10
+2018-08-23 17:08:48,642 INFO --------------------------------------------------
+2018-08-23 17:09:11,247 INFO -------------train starts:1808231709--------------
+2018-08-23 17:10:07,458 INFO Shared train: Task 1 got better F1:0.0239741816505302 in step 10
+2018-08-23 17:10:07,459 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_1
+2018-08-23 17:10:19,391 INFO Shared train: Task 2 got better F1:0.30546507419471586 in step 10
+2018-08-23 17:10:19,393 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_2, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_2
+2018-08-23 17:10:31,321 INFO Shared train: Task 3 got better F1:0.605313092979127 in step 10
+2018-08-23 17:10:31,323 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_3, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_3
+2018-08-23 17:10:43,256 INFO Shared train: Task 4 got better F1:0.3647332768839966 in step 10
+2018-08-23 17:10:43,258 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_4
+2018-08-23 17:11:11,695 INFO Shared train: Task 1 got better F1:0.5961462058005562 in step 20
+2018-08-23 17:11:11,697 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_1
+2018-08-23 17:11:22,848 INFO Shared train: Task 2 got better F1:0.7455882352941176 in step 20
+2018-08-23 17:11:22,849 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_2, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_2
+2018-08-23 17:11:33,411 INFO Shared train: Task 3 got better F1:0.7653305926687222 in step 20
+2018-08-23 17:11:33,413 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_3, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_3
+2018-08-23 17:11:44,315 INFO Shared train: Task 4 got better F1:0.41115513562938133 in step 20
+2018-08-23 17:11:44,317 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/task_private_4
+2018-08-23 17:11:44,317 INFO -----------Shared Train ends-------------
+2018-08-23 17:11:45,779 INFO >>>>>>Finally,saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231709/checkpoints/shared_train_done after epochs:20
+2018-08-23 17:13:06,780 INFO --------------------------------------------------
+2018-08-23 17:13:30,250 INFO -------------train starts:1808231713--------------
+2018-08-23 17:14:02,193 INFO Shared train: Task 1 got better F1:0.03107861060329068 in step 5
+2018-08-23 17:14:02,195 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_1
+2018-08-23 17:14:33,442 INFO Shared train: Task 4 got better F1:0.19694072657743786 in step 5
+2018-08-23 17:14:33,443 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_4
+2018-08-23 17:14:56,943 INFO Shared train: Task 1 got better F1:0.4063242986210176 in step 10
+2018-08-23 17:14:56,945 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_1
+2018-08-23 17:15:07,570 INFO Shared train: Task 2 got better F1:0.03391267486222975 in step 10
+2018-08-23 17:15:07,571 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_2, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_2
+2018-08-23 17:15:19,385 INFO Shared train: Task 3 got better F1:0.5329073482428115 in step 10
+2018-08-23 17:15:19,385 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_3, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_3
+2018-08-23 17:15:46,654 INFO Shared train: Task 1 got better F1:0.5453622894256139 in step 15
+2018-08-23 17:15:46,655 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_1
+2018-08-23 17:15:57,337 INFO Shared train: Task 2 got better F1:0.65231067021534 in step 15
+2018-08-23 17:15:57,338 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_2, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_2
+2018-08-23 17:16:07,865 INFO Shared train: Task 3 got better F1:0.6398968502486645 in step 15
+2018-08-23 17:16:07,865 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_3, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_3
+2018-08-23 17:16:18,481 INFO Shared train: Task 4 got better F1:0.5012248897599216 in step 15
+2018-08-23 17:16:18,482 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_4
+2018-08-23 17:16:41,485 INFO Shared train: Task 1 got better F1:0.6620407437060759 in step 20
+2018-08-23 17:16:41,486 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_1
+2018-08-23 17:16:52,010 INFO Shared train: Task 2 got better F1:0.7244623655913979 in step 20
+2018-08-23 17:16:52,010 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_2, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_2
+2018-08-23 17:17:03,969 INFO Shared train: Task 3 got better F1:0.6417885358883846 in step 20
+2018-08-23 17:17:03,970 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_shared_3, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/task_private_3
+2018-08-23 17:17:11,902 INFO -----------Shared Train ends-------------
+2018-08-23 17:17:13,325 INFO >>>>>>Finally,saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231713/checkpoints/shared_train_done after epochs:20
+2018-08-23 17:46:18,278 INFO --------------------------------------------------
+2018-08-23 17:46:41,425 INFO -------------train starts:1808231746--------------
+2018-08-23 17:48:01,088 INFO Shared train: Task 1 got better F1:0.5499188910190237 in step 10
+2018-08-23 17:48:01,088 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_1
+2018-08-23 17:48:23,457 INFO Shared train: Task 3 got better F1:0.6003540962497989 in step 10
+2018-08-23 17:48:23,457 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_3, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_3
+2018-08-23 17:48:36,330 INFO Shared train: Task 4 got better F1:0.27598674299487796 in step 10
+2018-08-23 17:48:36,330 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_4
+2018-08-23 17:49:01,902 INFO Shared train: Task 1 got better F1:0.6565863203771236 in step 15
+2018-08-23 17:49:01,902 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_1
+2018-08-23 17:49:14,852 INFO Shared train: Task 2 got better F1:0.5916819251896417 in step 15
+2018-08-23 17:49:14,852 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_2, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_2
+2018-08-23 17:49:28,091 INFO Shared train: Task 3 got better F1:0.6740103270223751 in step 15
+2018-08-23 17:49:28,091 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_3, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_3
+2018-08-23 17:49:38,806 INFO Shared train: Task 4 got better F1:0.5604256397263744 in step 15
+2018-08-23 17:49:38,806 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_4
+2018-08-23 17:50:06,840 INFO Shared train: Task 1 got better F1:0.6573078631719236 in step 20
+2018-08-23 17:50:06,841 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_1, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_1
+2018-08-23 17:50:17,622 INFO Shared train: Task 2 got better F1:0.6679775280898876 in step 20
+2018-08-23 17:50:17,622 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_2, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_2
+2018-08-23 17:50:39,345 INFO Shared train: Task 4 got better F1:0.656084656084656 in step 20
+2018-08-23 17:50:39,347 INFO >>>>>>Saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_shared_4, private mode to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/task_private_4
+2018-08-23 17:50:39,347 INFO -----------Shared Train ends-------------
+2018-08-23 17:50:40,716 INFO >>>>>>Finally,saved shared model to /Users/liangs/Codes/adv_mulit_task_seq_tagging/checkpoints/multi_task_4_1808231746/checkpoints/shared_train_done after epochs:20

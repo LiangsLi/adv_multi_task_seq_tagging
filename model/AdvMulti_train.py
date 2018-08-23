@@ -48,9 +48,9 @@ parser.add_argument('--batch_size', default=10, type=int)
 parser.add_argument('--batch_size_big', default=10, type=int)
 parser.add_argument('--batch_size_huge', default=10, type=int)
 # step
-parser.add_argument('--num_epochs', default=10, type=int)
+parser.add_argument('--num_epochs', default=20, type=int)
 parser.add_argument('--num_epochs_private', default=10, type=int)
-parser.add_argument('--evaluate_every', default=10, type=int)
+parser.add_argument('--evaluate_every', default=5, type=int)
 
 # Early Stop
 parser.add_argument('--all_early_stop_step', default=100, type=int)
@@ -478,13 +478,24 @@ with tf.Graph().as_default():
             # restore_parm = [False] * FLAGS.num_corpus
             #   加载各个私有模块的最优参数：
             print('--load best model')
+            shard_train_acc = []
             shared_model_saver.restore(sess, checkpoint_shared[-1])
             for j in range(1, FLAGS.num_corpus + 1):
                 task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
                 yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
                                                 dev_mode=False, print_predict=False)
                 f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-                print("--Task {}, F1 {.2f}".format(j, f1 * 100))
+                print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
+                shard_train_acc.append(f1)
+            print("##" * 10)
+            sess.run(tf.global_variables_initializer())
+            shared_model_saver.restore(sess, checkpoint_shared[-1])
+            for j in range(1, FLAGS.num_corpus + 1):
+                task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
+                yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                                                dev_mode=False, print_predict=False)
+                f1 = get_metric_out(yp, yt, print_metric=False, test=False)
+                print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
             #   加载共享模块的“最优参数”：
             
             raise RuntimeError('stop')
@@ -495,8 +506,6 @@ with tf.Graph().as_default():
                     # stop 初始化为 False
                     if private_stop_flag[j] is False:
                         stop = False
-                    # if not restore_parm[j]:
-                    #     saver.restore(sess, checkpoint_all[j])
                 
                 # 持续训练直到所有 private_stop_flag 都是 True（所有 CRF 都取得最优）
                 if stop is False:
@@ -538,18 +547,34 @@ with tf.Graph().as_default():
                     print('Private train: Early stop triggered, all the tasks have been finished. Dropout:', DROP_OUT)
                     logger.info("Private train : Early stop triggered in epoch:{}".format(i))
                     break
+        
         logger.info(">>>>>>>>>>>>>>>>Train Done<<<<<<<<<<<<<<<")
+        # 结果对比：
+        for i in range(FLAGS.num_corpus):
+            print('Shared train result: Task{} best F1:{.2f}'.format(i + 1, shard_train_acc[i] * 100))
+            print(
+                'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
+                                                                                   best_accuary[i] * 100))
+        print('--load best model')
+        sess.run(tf.global_variables_initializer())
+        shared_model_saver.restore(sess, checkpoint_shared[-1])
+        for j in range(1, FLAGS.num_corpus + 1):
+            task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
+            yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                                            dev_mode=False, print_predict=False)
+            f1 = get_metric_out(yp, yt, print_metric=False, test=False)
+            print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
+        
         if FLAGS.predict:
             """预测模式"""
             logger.info('-------------Show the results------------')
+            print('--load best model')
+            shared_model_saver.restore(sess, checkpoint_shared[-1])
+            for j in range(1, FLAGS.num_corpus + 1):
+                task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
             # todo:目前的 predict 实际上是 test，（1）是没有专门的读取没有正确标签的迭代器、（2）是还是需要存放 N 个地方，分别抽取，不能存放1份抽取 N 次
             for i in range(FLAGS.num_corpus):
-                filename = 'Model' + str(i + 1)
-                # 重新加载模型
-                # checkpoint_all[i]: Path where parameters were previously saved.
-                saver.restore(sess, checkpoint_all[i])
                 print('Task:{}\n'.format(i + 1))
-                logger.info('Task:{}, filename:{}'.format(i + 1, filename))
                 # task_data[i][3]是测试数据的 dataFrame（pandas 返回），[4]是测试数据的 iterator
                 yp, yt, _ = final_test_step(0, task_data[i][3], task_data[i][4], i + 1, print_predict=False)
                 # evaluate_word_PRF(yp, yt)
