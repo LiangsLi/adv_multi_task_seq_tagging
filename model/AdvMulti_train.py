@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 import argparse
 import pathlib
 from voc import Vocab, Tag
-from config import DATA_FILE, DROP_OUT, MODEL_TYPE, ADV_STATUS
+from config import DROP_OUT, MODEL_TYPE, ADV_STATUS
 
 from AdvMulti_model import MultiModel
 import data_helpers
@@ -59,7 +59,7 @@ parser.add_argument('--private_early_stop_step', default=100, type=int)
 # Misc Parameters
 parser.add_argument('--allow_soft_placement', default=True, type=bool)
 parser.add_argument('--log_device_placement', default=False, type=bool)
-parser.add_argument('--gpu_growth',default=True,type=bool)
+parser.add_argument('--gpu_growth', default=True, type=bool)
 FLAGS = parser.parse_args()
 # if FLAGS.embed_status is False:
 #     不使用预训练词向量
@@ -331,7 +331,7 @@ with tf.Graph().as_default():
             time_str = datetime.datetime.now().isoformat()
             print("Private train:Task_{}: {}: step: +{}, loss {:g}".format(id, time_str, step, loss))
             # test_summ_writer.add_summary(summ, step + FLAGS.num_epochs)
-            private_train_writer.add_summary(loss_summ, step + FLAGS.num_epochs)
+            private_train_writer.add_summary(loss_summ, step + shared_train_stop_step[id - 1])
             
             return step
         
@@ -490,26 +490,40 @@ with tf.Graph().as_default():
             # 执行完 num epoch 个训练步之后
             # restore_parm = [False] * FLAGS.num_corpus
             #   加载各个私有模块的最优参数：
-            print('--load best model')
+            # print('--load best model')
+            #
+            # last_best = np.argmax(best_step_all)
+            # if best_step_all[last_best] == 0:
+            #     logger.error("shared train best step can't be 0!")
+            #     raise RuntimeError("shared train best  step can't be 0!")
+            # else:
+            #     logger.info("LoadSharedMode:Choose Task{}'s shared model".format(last_best + 1))
             
-            last_best = np.argmax(best_step_all)
-            if best_step_all[last_best] == 0:
-                logger.error("shared train best step can't be 0!")
-                raise RuntimeError("shared train best  step can't be 0!")
-            else:
-                logger.info("LoadSharedMode:Choose Task{}'s shared model".format(last_best + 1))
-            shard_train_acc = []
-            shared_model_saver.restore(sess, checkpoint_shared[last_best])
             for j in range(1, FLAGS.num_corpus + 1):
                 task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
-                yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                                dev_mode=False, print_predict=False)
-                f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-                # print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
-                logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, f1 * 100))
-                shard_train_acc.append(f1)
-            print("##" * 10)
             
+            shared_model_scores = []
+            shared_f1s = []
+            for shared_ckp in checkpoint_shared:
+                logger.info('use: '+shared_ckp)
+                shared_model_saver.restore(sess, shared_ckp)
+                # 测试：
+                temp = []
+                for j in range(1, FLAGS.num_corpus + 1):
+                    yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                                                    dev_mode=False, print_predict=False)
+                    f1 = get_metric_out(yp, yt, print_metric=False, test=False)
+                    # print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
+                    logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, f1 * 100))
+                    temp.append(f1)
+                shared_model_scores.append(sum(temp))
+                shared_f1s.append(temp)
+            # 选择最优：
+            best_shared_model = np.argmax(shared_model_scores)
+            shared_model_saver.restore(sess, checkpoint_shared[best_shared_model])
+            shared_best_f1 = shared_f1s[best_shared_model]
+            print("##" * 10)
+            logger.info("LoadSharedModel> Choose: " + checkpoint_shared[best_shared_model])
             # raise RuntimeError('stop')
             
             for i in range(FLAGS.num_epochs_private):
@@ -531,7 +545,8 @@ with tf.Graph().as_default():
                             current_step = train_step_private(x_batch, y_batch, seq_len_batch, j)
                             if current_step % FLAGS.evaluate_every == 0:
                                 # 在 dev 数据集上验证模型：
-                                yp, yt, tmp_f = final_test_step(current_step + shared_train_stop_step[j-1], task_data[j - 1][1],
+                                yp, yt, tmp_f = final_test_step(current_step + shared_train_stop_step[j - 1],
+                                                                task_data[j - 1][1],
                                                                 task_data[j - 1][2], j, dev_mode=True)
                                 # tmp_f = evaluate_word_PRF(yp, yt)
                                 # tmp_f = get_metric_out(yp, yt)
@@ -563,22 +578,29 @@ with tf.Graph().as_default():
         logger.info(">>>>>>>>>>>>>>>>Train Done<<<<<<<<<<<<<<<")
         # 结果对比：
         for i in range(FLAGS.num_corpus):
-            logger.info('Shared train result: Task{} best F1:{:.2f}'.format(i + 1, shard_train_acc[i] * 100))
+            logger.info('Shared train result: Task{} best F1:{:.2f}'.format(i + 1, shared_best_f1[i] * 100))
             # print(
             #     'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
             #                                                                        best_accuary[i] * 100))
             logger.info(
                 'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
-                                                                                   best_accuary[i] * 100))
-        print('--load best model')
+                                                                                  best_accuary[i] * 100))
+        # 加载私有模块：
         sess.run(tf.global_variables_initializer())
-        shared_model_saver.restore(sess, checkpoint_shared[-1])
         for j in range(1, FLAGS.num_corpus + 1):
             task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
-            yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                            dev_mode=False, print_predict=False)
-            f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-            logger.info(">LoadFinalModel--Task {}, F1 {:.2f}".format(j, f1 * 100))
+
+        for shared_ckp in checkpoint_shared:
+            logger.info('use: '+shared_ckp)
+            shared_model_saver.restore(sess, shared_ckp)
+            # 测试：
+            for j in range(1, FLAGS.num_corpus + 1):
+                yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                                                dev_mode=False, print_predict=False)
+                f1 = get_metric_out(yp, yt, print_metric=False, test=False)
+                # print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
+                logger.info(">LoadFinalMode--Task {}, F1 {:.2f}".format(j, f1 * 100))
+        
         
         if FLAGS.predict:
             """预测模式"""
