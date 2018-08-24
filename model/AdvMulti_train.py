@@ -48,9 +48,9 @@ parser.add_argument('--batch_size', default=64, type=int)
 parser.add_argument('--batch_size_big', default=64, type=int)
 parser.add_argument('--batch_size_huge', default=64, type=int)
 # step
-parser.add_argument('--num_epochs', default=20, type=int)
-parser.add_argument('--num_epochs_private', default=10, type=int)
-parser.add_argument('--evaluate_every', default=5, type=int)
+parser.add_argument('--num_epochs', default=500, type=int)
+parser.add_argument('--num_epochs_private', default=500, type=int)
+parser.add_argument('--evaluate_every', default=10, type=int)
 
 # Early Stop
 parser.add_argument('--all_early_stop_step', default=100, type=int)
@@ -59,7 +59,7 @@ parser.add_argument('--private_early_stop_step', default=100, type=int)
 # Misc Parameters
 parser.add_argument('--allow_soft_placement', default=True, type=bool)
 parser.add_argument('--log_device_placement', default=False, type=bool)
-
+parser.add_argument('--gpu_growth',default=True,type=bool)
 FLAGS = parser.parse_args()
 # if FLAGS.embed_status is False:
 #     不使用预训练词向量
@@ -150,9 +150,10 @@ shared_train_stop_step = [FLAGS.num_epochs] * FLAGS.num_corpus
 with tf.Graph().as_default():
     session_conf = tf.ConfigProto(
         allow_soft_placement=FLAGS.allow_soft_placement,
-        log_device_placement=FLAGS.log_device_placement)
+        log_device_placement=FLAGS.log_device_placement
+    )
     
-    session_conf.gpu_options.allow_growth = True
+    session_conf.gpu_options.allow_growth = FLAGS.gpu_growth
     
     sess = tf.Session(config=session_conf)
     with sess.as_default():
