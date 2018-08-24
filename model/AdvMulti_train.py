@@ -69,12 +69,20 @@ FLAGS = parser.parse_args()
 # for attr, value in sorted(FLAGS.__private_stop_flags.items(), reverse=True):
 #     print("{}={} \n".format(attr.upper(), value))
 # print("")
+
+time_format = '%y%m%d%H%M'
+time_stamp = time.strftime(time_format, time.localtime())
 # define log file
+logger_file_path = pathlib.Path('../log')
+if not logger_file_path.exists():
+    logger_file_path.mkdir()
 logger = logging.getLogger('record')
-hdlr = logging.FileHandler('AdvMulti_train.log')
+fh = logging.FileHandler(str(logger_file_path / time_stamp))
+ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-hdlr.setFormatter(formatter)
-logger.addHandler(hdlr)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+logger.addHandler(ch)
 logger.setLevel(logging.INFO)
 
 if MODEL_TYPE == 'Model1':
@@ -88,7 +96,7 @@ elif MODEL_TYPE == 'Model3':
     sep_status = False
 else:
     # print'choose the correct multi_model, the listed choices are Model1, Model2, Model3'
-    logger.warn('Wrong Model Choosen {}'.format(MODEL_TYPE))
+    logger.warning('Wrong Model Choosen {}'.format(MODEL_TYPE))
     sys.exit()
 
 # stats = [FLAGS.embed_status, FLAGS.gate_status, ADV_STATUS]
@@ -134,7 +142,9 @@ for i in range(FLAGS.num_corpus):
     # test_data_iterator.append(data_helpers.BucketedDataIterator(test_df[i]))
 
 logger.info('-' * 50)
-time_format = '%y%m%d%H%M'
+
+shared_train_stop_step = [FLAGS.num_epochs] * FLAGS.num_corpus
+# shared_train_best_step = [0] * FLAGS.num_corpus
 # Training
 # ==================================================
 with tf.Graph().as_default():
@@ -165,7 +175,6 @@ with tf.Graph().as_default():
                            sep=sep_status)
         
         # Output directory for models
-        time_stamp = time.strftime(time_format, time.localtime())
         model_name = 'multi_task_' + str(FLAGS.num_corpus) + '_' + time_stamp
         # try:
         #     递归删除model 参数保存目录
@@ -387,7 +396,6 @@ with tf.Graph().as_default():
         
         
         ########################################################
-        best_time = []
         # train loop
         if FLAGS.train:
             best_accuary = [0.0] * FLAGS.num_corpus
@@ -407,7 +415,7 @@ with tf.Graph().as_default():
                     shared_save_path = shared_model_saver.save(sess, checkpoint_shared[-1])
                     logger.info("Shared train : Early stop triggered in epoch:{}".format(i))
                     logger.info(">>>>>>Saved shared model to path:{}".format(shared_save_path))
-                    print("Shared train : Early stop triggered in epoch:{}".format(i))
+                    # print("Shared train : Early stop triggered in epoch:{}".format(i))
                     break
                 for j in range(1, FLAGS.num_corpus + 1):
                     if all_stop_flag[j - 1]:
@@ -456,12 +464,13 @@ with tf.Graph().as_default():
                                 "Shared train: Task {} got better F1:{} in step {}".format(j, tmp_f, current_step))
                             logger.info(">>>>>>Saved shared model to {}, private mode to {}".format(shared_save_path,
                                                                                                     private_save_path))
-                            print("Shared train: Task {} got better F1:{} in step {}".format(j, tmp_f, current_step))
+                            # print("Shared train: Task {} got better F1:{} in step {}".format(j, tmp_f, current_step))
                         
                         elif current_step - best_step_all[j - 1] > FLAGS.all_early_stop_step:
-                            logger.info("Shared train : Task {} early stop in step:{}".format(j - 1, current_step))
-                            print("Shared train : Task {} early stop in step:{}".format(j - 1, current_step))
+                            logger.info("Shared train : Task {} early stop in step:{}".format(j, current_step))
+                            # print("Shared train : Task {} early stop in step:{}".format(j, current_step))
                             all_stop_flag[j - 1] = True
+                            shared_train_stop_step[j - 1] = current_step
             
             if sum(all_stop_flag) != FLAGS.num_corpus:
                 logger.info('-----------Shared Train ends-------------')
@@ -470,7 +479,10 @@ with tf.Graph().as_default():
                     '>>>>>>Finally,saved shared model to {} after epochs:{}'.format(shared_save_path, FLAGS.num_epochs))
             
             for i in range(FLAGS.num_corpus):
-                print(
+                # print(
+                #     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
+                #                                                                       best_accuary[i] * 100))
+                logger.info(
                     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
                                                                                       best_accuary[i] * 100))
             
@@ -478,27 +490,26 @@ with tf.Graph().as_default():
             # restore_parm = [False] * FLAGS.num_corpus
             #   加载各个私有模块的最优参数：
             print('--load best model')
+            
+            last_best = np.argmax(best_step_all)
+            if best_step_all[last_best] == 0:
+                logger.error("shared train best step can't be 0!")
+                raise RuntimeError("shared train best  step can't be 0!")
+            else:
+                logger.info("LoadSharedMode:Choose Task{}'s shared model".format(last_best + 1))
             shard_train_acc = []
-            shared_model_saver.restore(sess, checkpoint_shared[-1])
+            shared_model_saver.restore(sess, checkpoint_shared[last_best])
             for j in range(1, FLAGS.num_corpus + 1):
                 task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
                 yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
                                                 dev_mode=False, print_predict=False)
                 f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-                print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
+                # print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
+                logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, f1 * 100))
                 shard_train_acc.append(f1)
             print("##" * 10)
-            sess.run(tf.global_variables_initializer())
-            shared_model_saver.restore(sess, checkpoint_shared[-1])
-            for j in range(1, FLAGS.num_corpus + 1):
-                task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
-                yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                                dev_mode=False, print_predict=False)
-                f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-                print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
-            #   加载共享模块的“最优参数”：
             
-            raise RuntimeError('stop')
+            # raise RuntimeError('stop')
             
             for i in range(FLAGS.num_epochs_private):
                 stop = True
@@ -519,7 +530,7 @@ with tf.Graph().as_default():
                             current_step = train_step_private(x_batch, y_batch, seq_len_batch, j)
                             if current_step % FLAGS.evaluate_every == 0:
                                 # 在 dev 数据集上验证模型：
-                                yp, yt, tmp_f = final_test_step(current_step + FLAGS.num_epochs, task_data[j - 1][1],
+                                yp, yt, tmp_f = final_test_step(current_step + shared_train_stop_step[j-1], task_data[j - 1][1],
                                                                 task_data[j - 1][2], j, dev_mode=True)
                                 # tmp_f = evaluate_word_PRF(yp, yt)
                                 # tmp_f = get_metric_out(yp, yt)
@@ -534,25 +545,28 @@ with tf.Graph().as_default():
                                     logger.info(
                                         ">>>>>>Saved shared model to {}, private mode to {}".format(shared_save_path,
                                                                                                     private_save_path))
-                                    print("Private train: Task {} got better F1:{} in step {}".format(j, tmp_f,
-                                                                                                      current_step))
+                                    # print("Private train: Task {} got better F1:{} in step {}".format(j, tmp_f,
+                                    #                                                                   current_step))
                                 
                                 elif current_step - best_step_private[j - 1] > FLAGS.private_early_stop_step:
                                     # 超过2000步都没有取得更好的结果
                                     logger.info(
-                                        "Private train : Task {} early stop in step:{}".format(j - 1, current_step))
-                                    print("Task_{} didn't get better results in more than 100 steps".format(j))
+                                        "Private train : Task {} early stop in step:{}".format(j, current_step))
+                                    # print("Task_{} didn't get better results in more than 100 steps".format(j))
                                     private_stop_flag[j - 1] = True
                 else:
-                    print('Private train: Early stop triggered, all the tasks have been finished. Dropout:', DROP_OUT)
+                    # print('Private train: Early stop triggered, all the tasks have been finished. Dropout:', DROP_OUT)
                     logger.info("Private train : Early stop triggered in epoch:{}".format(i))
                     break
         
         logger.info(">>>>>>>>>>>>>>>>Train Done<<<<<<<<<<<<<<<")
         # 结果对比：
         for i in range(FLAGS.num_corpus):
-            print('Shared train result: Task{} best F1:{.2f}'.format(i + 1, shard_train_acc[i] * 100))
-            print(
+            logger.info('Shared train result: Task{} best F1:{:.2f}'.format(i + 1, shard_train_acc[i] * 100))
+            # print(
+            #     'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
+            #                                                                        best_accuary[i] * 100))
+            logger.info(
                 'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
                                                                                    best_accuary[i] * 100))
         print('--load best model')
@@ -563,7 +577,7 @@ with tf.Graph().as_default():
             yp, yt, tmp_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
                                             dev_mode=False, print_predict=False)
             f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-            print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
+            logger.info(">LoadFinalModel--Task {}, F1 {:.2f}".format(j, f1 * 100))
         
         if FLAGS.predict:
             """预测模式"""
