@@ -431,10 +431,22 @@ with tf.Graph().as_default():
                 
                 lhy_P = np.mean(lhy_P_values)
                 lhy_R = np.mean(lhy_R_values)
-                lhy_F = 2 * lhy_P * lhy_R / (lhy_P + lhy_R)
-                hj_P = pred_right_num / pred_data_num
-                hj_R = pred_right_num / real_data_num
-                hj_F = 2 * hj_P * hj_R / (hj_P + hj_R)
+                if (lhy_P + lhy_R) == 0:
+                    lhy_F = 0
+                else:
+                    lhy_F = 2 * lhy_P * lhy_R / (lhy_P + lhy_R)
+                if pred_data_num == 0:
+                    hj_P = 0
+                else:
+                    hj_P = pred_right_num / pred_data_num
+                if real_data_num == 0:
+                    hj_R = 0
+                else:
+                    hj_R = pred_right_num / real_data_num
+                if (hj_P + hj_R) == 0:
+                    hj_F = 0
+                else:
+                    hj_F = 2 * hj_P * hj_R / (hj_P + hj_R)
                 # print('right  : ', y)
                 # print('predict: ', y_pred)
                 if print_metric:
