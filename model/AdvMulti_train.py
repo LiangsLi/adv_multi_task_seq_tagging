@@ -438,7 +438,12 @@ with tf.Graph().as_default():
                         real_data_num += 1
                         flag2 = True
                     match_size = get_match_size((pred_begin, pred_end), (real_begin, real_end))
-                    retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
+                    try:
+                        retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
+                    except ZeroDivisionError as e:
+                        print("pb:{},pe:{},rb:{},re:{}".format(pred_begin, pred_end, real_begin, real_end))
+                        print("ms:{}".format(match_size))
+                        raise RuntimeError("stop")
                     if retio >= 0.8:
                         pred_right_num += 1
                         flag3 = True
