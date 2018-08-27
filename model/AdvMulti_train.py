@@ -337,7 +337,7 @@ with tf.Graph().as_default():
             return step
         
         
-        def final_test_step(step, df, iterator, idx, predict=False, print_predict=False, summary=False):
+        def final_test_step(step, df, iterator, idx, predict=False, print_predict=True, summary=False):
             """测试predict/test、验证dev"""
             
             def get_begin_end(idxs, tag):
@@ -360,14 +360,15 @@ with tf.Graph().as_default():
                         begin = B_list[0]
                         end = E_list[0]
                     elif len(B_list) != 0 or len(E_list) != 0:
-                        if len(B_list) == 0:
-                            begin = M_list[0]
-                        else:
-                            begin = B_list[0]
-                        if len(E_list) == 0:
-                            end = M_list[-1]
-                        else:
-                            end = E_list[0]
+                        if len(M_list) != 0:
+                            if len(B_list) == 0:
+                                begin = M_list[0]
+                            else:
+                                begin = B_list[0]
+                            if len(E_list) == 0:
+                                end = M_list[-1]
+                            else:
+                                end = E_list[0]
                     elif len(M_list) != 0:
                         begin = M_list[0]
                         end = M_list[-1]
@@ -431,22 +432,27 @@ with tf.Graph().as_default():
                 
                 lhy_P = np.mean(lhy_P_values)
                 lhy_R = np.mean(lhy_R_values)
+                
                 if (lhy_P + lhy_R) == 0:
                     lhy_F = 0
                 else:
                     lhy_F = 2 * lhy_P * lhy_R / (lhy_P + lhy_R)
+                
                 if pred_data_num == 0:
                     hj_P = 0
                 else:
                     hj_P = pred_right_num / pred_data_num
+                
                 if real_data_num == 0:
                     hj_R = 0
                 else:
                     hj_R = pred_right_num / real_data_num
+                
                 if (hj_P + hj_R) == 0:
                     hj_F = 0
                 else:
                     hj_F = 2 * hj_P * hj_R / (hj_P + hj_R)
+                
                 # print('right  : ', y)
                 # print('predict: ', y_pred)
                 if print_metric:
@@ -487,7 +493,7 @@ with tf.Graph().as_default():
                     print("Batch num: ", batch_num, "Sample num: ", N)
                     random.shuffle(samples)
                     # num_ = min(N // 10, 10)
-                    for (pred_one, true_one) in samples[:1]:
+                    for (pred_one, true_one) in samples[:2]:
                         print('right  : ', true_one)
                         print('predict: ', pred_one)
                         print('---' * 10)
