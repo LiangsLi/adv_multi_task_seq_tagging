@@ -411,7 +411,7 @@ class MultiModel(object):
         return metric_summ
     
     # predict all for tasks
-    def fast_all_predict(self, sess, N, batch_iterator, scores, transition_param, loss_op, idx, dev_mode=False):
+    def fast_all_predict(self, sess, N, batch_iterator, scores, transition_param, loss_op, idx, summary=False):
         """
                 测试 predict/test、验证 dev
 
@@ -422,7 +422,7 @@ class MultiModel(object):
         :param transition_param: 训练好的 CRF 参数
         :return:
         """
-        y_pred, y_true = [], []
+        # y_pred, y_true = [], []
         samples = []
         num_batches = int((N - 1) / self.batch_size)
         for i in range(num_batches):
@@ -431,7 +431,7 @@ class MultiModel(object):
             
             # infer predictions
             losses = []
-            if dev_mode:
+            if summary:
                 feed_dict = {
                     self.x: x_batch,
                     self.y: y_batch,
@@ -463,15 +463,16 @@ class MultiModel(object):
                 viterbi_sequence, _ = tf.contrib.crf.viterbi_decode(
                     unary_scores_, transition_params)
                 
-                y_pred += viterbi_sequence
-                y_true += y_[:seq_len_].tolist()
+                # y_pred += viterbi_sequence
+                # y_true += y_[:seq_len_].tolist()
                 samples.append((viterbi_sequence, y_[:seq_len_].tolist()))
         # 处理漏网之鱼（因为有数量不足一个 batch size 的样本）
-        y_true_one, y_pred_one = self.predict(sess, N - self.batch_size * num_batches, batch_iterator, scores,
-                                              transition_param)
-        y_pred += y_pred_one
-        y_true += y_true_one
-        if dev_mode:
+        other_samples = self.predict(sess, N - self.batch_size * num_batches, batch_iterator, scores,
+                                     transition_param)
+        # y_pred += y_pred_one
+        # y_true += y_true_one
+        samples += other_samples
+        if summary:
             loss = np.mean(losses)
             feed_dict2 = {
                 self.tf_loss_ph: loss
@@ -479,11 +480,12 @@ class MultiModel(object):
             loss_summ = sess.run(self.real_losses_summ[idx - 1], feed_dict2)
         else:
             loss_summ = None
-        return y_true, y_pred, samples, num_batches, loss_summ
+        return samples, num_batches, loss_summ
     
     # predict one by one for tasks
     def predict(self, sess, N, one_iterator, scores, transition_param):
-        y_pred, y_true = [], []
+        # y_pred, y_true = [], []
+        samples = []
         for i in range(N):
             x_one, y_one, len_one = one_iterator.next_pred_one()
             
@@ -503,10 +505,10 @@ class MultiModel(object):
             viterbi_sequence, _ = tf.contrib.crf.viterbi_decode(
                 unary_scores_, transition_params)
             
-            y_pred += viterbi_sequence
-            y_true += y_one_[:len_one[0]].tolist()
-        
-        return y_true, y_pred
+            # y_pred += viterbi_sequence
+            # y_true += y_one_[:len_one[0]].tolist()
+            samples.append((viterbi_sequence, y_one_[:len_one[0]].tolist()))
+        return samples
 
 
 def mkMask(input_tensor, maxLen):
