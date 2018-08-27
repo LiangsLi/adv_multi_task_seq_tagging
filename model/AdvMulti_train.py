@@ -50,7 +50,7 @@ parser.add_argument('--batch_size_huge', default=64, type=int)
 # step
 parser.add_argument('--num_epochs', default=500, type=int)
 parser.add_argument('--num_epochs_private', default=500, type=int)
-parser.add_argument('--evaluate_every', default=10, type=int)
+parser.add_argument('--evaluate_every', default=15, type=int)
 
 # Early Stop
 parser.add_argument('--all_early_stop_step', default=100, type=int)
@@ -407,8 +407,16 @@ with tf.Graph().as_default():
                 for y_pred, y in data:
                     lhy_one_P = [a == b for (a, b) in zip(y_pred, y) if Tags.idx2tag[b] in ['B', 'M', 'E', 'I']]
                     lhy_one_R = [a == b for (a, b) in zip(y_pred, y) if Tags.idx2tag[a] in ['B', 'M', 'E', 'I']]
-                    lhy_P_values.append(np.mean(lhy_one_P))
-                    lhy_R_values.append(np.mean(lhy_one_R))
+                    if len(lhy_one_P) == 0:
+                        pp = 0
+                    else:
+                        pp = np.mean(lhy_one_P)
+                    if len(lhy_one_R) == 0:
+                        rr = 0
+                    else:
+                        rr = np.mean(lhy_one_R)
+                    lhy_P_values.append(pp)
+                    lhy_R_values.append(rr)
                     
                     """
                     统计每一个知识点的准确率和召回率
