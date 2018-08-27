@@ -50,7 +50,7 @@ parser.add_argument('--batch_size_huge', default=64, type=int)
 # step
 parser.add_argument('--num_epochs', default=500, type=int)
 parser.add_argument('--num_epochs_private', default=500, type=int)
-parser.add_argument('--evaluate_every', default=15, type=int)
+parser.add_argument('--evaluate_every', default=10, type=int)
 
 # Early Stop
 parser.add_argument('--all_early_stop_step', default=100, type=int)
@@ -384,6 +384,8 @@ with tf.Graph().as_default():
                 return begin, end
             
             def get_match_size(pred_one, real_one):
+                if (real_one[0], real_one[1]) == (-1, -1) or (pred_one[0], pred_one[1]) == (-1, -1):
+                    return 0
                 if pred_one[0] <= real_one[0]:
                     b1, e1 = pred_one
                     b2, e2 = real_one
@@ -426,17 +428,24 @@ with tf.Graph().as_default():
                                               # (TP + FP) 预测数据的知识点总数 pred_data_num
                     f = 2 * p * r / (p + r)
                     """
-                    
+                    flag1, flag2, flag3 = False, False, False
                     pred_begin, pred_end = get_begin_end(y_pred, Tags)
                     real_begin, real_end = get_begin_end(y, Tags)
                     if pred_begin != -1 and pred_end != -1:
                         pred_data_num += 1
+                        flag1 = True
                     if real_begin != -1 and real_end != -1:
                         real_data_num += 1
+                        flag2 = True
                     match_size = get_match_size((pred_begin, pred_end), (real_begin, real_end))
                     retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
                     if retio >= 0.8:
                         pred_right_num += 1
+                        flag3 = True
+                    if (not flag1 and flag3) or (not flag2 and flag3):
+                        print("pb:{},pe:{},rb:{},re:{}".format(pred_begin, pred_end, real_begin, real_end))
+                        print("ms:{},r:{}".format(match_size, retio))
+                        raise RuntimeError("stop")
                 
                 lhy_P = np.mean(lhy_P_values)
                 lhy_R = np.mean(lhy_R_values)
