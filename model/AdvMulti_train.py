@@ -239,7 +239,7 @@ with tf.Graph().as_default():
         metric_P_writer = tf.summary.FileWriter(str(summ_path / 'metric_P'))
         metric_R_writer = tf.summary.FileWriter(str(summ_path / 'metric_R'))
         metric_F1_writer = tf.summary.FileWriter(str(summ_path / 'metric_F1'))
-        metric_hj_F1_writer = tf.summary.FileWriter(str(summ_path / 'hj_F1'))
+        metric_new_F1_writer = tf.summary.FileWriter(str(summ_path / 'new_F1'))
         ####################################
         
         # Initialize all variables 执行初始化
@@ -401,24 +401,24 @@ with tf.Graph().as_default():
                 # y: I:0 O:1
                 # cor_num = 0
                 Tags = Tag()
-                lhy_P_values = []
-                lhy_R_values = []
+                old_P_values = []
+                old_R_values = []
                 real_data_num = 0
                 pred_data_num = 0
                 pred_right_num = 0
                 for y_pred, y in data:
-                    lhy_one_P = [a == b for (a, b) in zip(y_pred, y) if Tags.idx2tag[b] in ['B', 'M', 'E', 'I']]
-                    lhy_one_R = [a == b for (a, b) in zip(y_pred, y) if Tags.idx2tag[a] in ['B', 'M', 'E', 'I']]
-                    if len(lhy_one_P) == 0:
+                    old_one_P = [a == b for (a, b) in zip(y_pred, y) if Tags.idx2tag[b] in ['B', 'M', 'E', 'I']]
+                    old_one_R = [a == b for (a, b) in zip(y_pred, y) if Tags.idx2tag[a] in ['B', 'M', 'E', 'I']]
+                    if len(old_one_P) == 0:
                         pp = 0
                     else:
-                        pp = np.mean(lhy_one_P)
-                    if len(lhy_one_R) == 0:
+                        pp = np.mean(old_one_P)
+                    if len(old_one_R) == 0:
                         rr = 0
                     else:
-                        rr = np.mean(lhy_one_R)
-                    lhy_P_values.append(pp)
-                    lhy_R_values.append(rr)
+                        rr = np.mean(old_one_R)
+                    old_P_values.append(pp)
+                    old_R_values.append(rr)
                     
                     """
                     统计每一个知识点的准确率和召回率
@@ -441,52 +441,50 @@ with tf.Graph().as_default():
                     try:
                         retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
                     except ZeroDivisionError as e:
-                        print("pb:{},pe:{},rb:{},re:{}".format(pred_begin, pred_end, real_begin, real_end))
-                        print("ms:{}".format(match_size))
-                        raise RuntimeError("stop")
+                        logger.warning("Warning: "+str(e))
+                        logger.warning("pb:{},pe:{},rb:{},re:{},ms:{}".format(pred_begin, pred_end, real_begin, real_end,match_size))
+                        raise RuntimeError("stop:ZeroDivisionError")
                     if retio >= 0.8:
                         pred_right_num += 1
                         flag3 = True
                     if (not flag1 and flag3) or (not flag2 and flag3):
-                        print("pb:{},pe:{},rb:{},re:{}".format(pred_begin, pred_end, real_begin, real_end))
-                        print("ms:{},r:{}".format(match_size, retio))
-                        raise RuntimeError("stop")
+                        logger.warning("Warning: flag1/2=False but flag3=True")
+                        logger.warning("pb:{},pe:{},rb:{},re:{},ms:{},r:{}".format(pred_begin, pred_end, real_begin, real_end,match_size,retio))
+                        raise RuntimeError("stop:flag1/2=False but flag3=True")
                 
-                lhy_P = np.mean(lhy_P_values)
-                lhy_R = np.mean(lhy_R_values)
+                old_P = np.mean(old_P_values)
+                old_R = np.mean(old_R_values)
                 
-                if (lhy_P + lhy_R) == 0:
-                    lhy_F = 0
+                if (old_P + old_R) == 0:
+                    old_F = 0
                 else:
-                    lhy_F = 2 * lhy_P * lhy_R / (lhy_P + lhy_R)
+                    old_F = 2 * old_P * old_R / (old_P + old_R)
                 
                 if pred_data_num == 0:
-                    hj_P = 0
+                    new_P = 0
                 else:
-                    hj_P = pred_right_num / pred_data_num
+                    new_P = pred_right_num / pred_data_num
                 
                 if real_data_num == 0:
-                    hj_R = 0
+                    new_R = 0
                 else:
-                    hj_R = pred_right_num / real_data_num
+                    new_R = pred_right_num / real_data_num
                 
-                if (hj_P + hj_R) == 0:
-                    hj_F = 0
+                if (new_P + new_R) == 0:
+                    new_F = 0
                 else:
-                    hj_F = 2 * hj_P * hj_R / (hj_P + hj_R)
+                    new_F = 2 * new_P * new_R / (new_P + new_R)
                 
-                # print('right  : ', y)
-                # print('predict: ', y_pred)
                 if print_metric:
-                    # print('lhy P: ', lhy_P)
-                    # print('lhy R: ', lhy_R)
-                    print('lhy F: ', lhy_F)
-                    print('h_j F: ', hj_F)
+                    # print('lhy P: ', old_P)
+                    # print('lhy R: ', old_R)
+                    print('old F: ', old_F)
+                    print('new F: ', new_F)
                     # print('###' * 10)
                 if test:
-                    return (lhy_P, lhy_R, lhy_F), (hj_P, hj_R, hj_F)
+                    return (old_P, old_R, old_F), (new_P, new_R, new_F)
                 else:
-                    return lhy_F, hj_F
+                    return old_F, new_F
             
             N = df.shape[0]
             # N 是 dev 数据样本数量
@@ -498,11 +496,11 @@ with tf.Graph().as_default():
                                                                    idx,
                                                                    summary)
             
-            (lhy_P, lhy_R, lhy_F), (hj_P, hj_R, hj_F) = get_metric_out(samples, test=True)
+            (old_P, old_R, old_F), (new_P, new_R, new_F) = get_metric_out(samples, test=True)
             
             if summary:
                 dev_writer.add_summary(loss_summ, step)
-                for metric_value, writer in zip([lhy_F, hj_F], [metric_F1_writer, metric_hj_F1_writer]):
+                for metric_value, writer in zip([old_F, new_F], [metric_F1_writer, metric_new_F1_writer]):
                     metric_summ = model.get_metric_summary(sess, metric_value, idx)
                     writer.add_summary(metric_summ, step)
             if predict:
@@ -520,7 +518,7 @@ with tf.Graph().as_default():
                         print('predict: ', pred_one)
                         print('---' * 10)
             
-            return lhy_F, hj_F
+            return old_F, new_F
         
         
         ########################################################
@@ -577,26 +575,20 @@ with tf.Graph().as_default():
                         # print("***" * 10)
                         # print('current_step: ', current_step)
                         # 在dev数据集上验证模型：
-                        lhy_f, hj_f = final_test_step(current_step, task_data[j - 1][1], task_data[j - 1][2], j,
+                        old_f, new_f = final_test_step(current_step, task_data[j - 1][1], task_data[j - 1][2], j,
                                                       summary=True)
-                        # tmp_f = evaluate_word_PRF(yp, yt)
-                        # tmp_f = get_metric_out(yp, yt)
-                        if best_accuary[j - 1] < hj_f:
-                            best_accuary[j - 1] = hj_f
+                        if best_accuary[j - 1] < new_f:
+                            best_accuary[j - 1] = new_f
                             best_step_all[j - 1] = current_step
                             shared_save_path = shared_model_saver.save(sess, checkpoint_shared[j - 1])
                             private_save_path = task_private_saver[j - 1].save(sess, checkpoint_private[j - 1])
-                            # path = saver.save(sess, checkpoint_all[j - 1])
-                            # print("Saved model checkpoint to {}\n".format(path))
                             logger.info(
-                                "Shared train: Task {} got better F1:{} in step {}".format(j, hj_f, current_step))
+                                "Shared train: Task {} got better F1:{} in step {}".format(j, new_f, current_step))
                             logger.info(">>>>>>Saved shared model to {}, private mode to {}".format(shared_save_path,
                                                                                                     private_save_path))
-                            # print("Shared train: Task {} got better F1:{} in step {}".format(j, tmp_f, current_step))
                         
                         elif current_step - best_step_all[j - 1] > FLAGS.all_early_stop_step:
                             logger.info("Shared train : Task {} early stop in step:{}".format(j, current_step))
-                            # print("Shared train : Task {} early stop in step:{}".format(j, current_step))
                             all_stop_flag[j - 1] = True
                             shared_train_stop_step[j - 1] = current_step
             
@@ -607,24 +599,10 @@ with tf.Graph().as_default():
                     '>>>>>>Finally,saved shared model to {} after epochs:{}'.format(shared_save_path, FLAGS.num_epochs))
             
             for i in range(FLAGS.num_corpus):
-                # print(
-                #     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
-                #                                                                       best_accuary[i] * 100))
                 logger.info(
                     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
                                                                                       best_accuary[i] * 100))
             
-            # 执行完 num epoch 个训练步之后
-            # restore_parm = [False] * FLAGS.num_corpus
-            #   加载各个私有模块的最优参数：
-            # print('--load best model')
-            #
-            # last_best = np.argmax(best_step_all)
-            # if best_step_all[last_best] == 0:
-            #     logger.error("shared train best step can't be 0!")
-            #     raise RuntimeError("shared train best  step can't be 0!")
-            # else:
-            #     logger.info("LoadSharedMode:Choose Task{}'s shared model".format(last_best + 1))
             
             for j in range(1, FLAGS.num_corpus + 1):
                 task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
@@ -637,12 +615,10 @@ with tf.Graph().as_default():
                 # 测试：
                 temp = []
                 for j in range(1, FLAGS.num_corpus + 1):
-                    lhy_f, hj_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                    old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
                                                   summary=False, print_predict=False)
-                    # f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-                    # print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
-                    logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, hj_f * 100))
-                    temp.append(hj_f)
+                    logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
+                    temp.append(new_f)
                 shared_model_scores.append(sum(temp))
                 shared_f1s.append(temp)
             # 选择最优：
@@ -672,33 +648,26 @@ with tf.Graph().as_default():
                             current_step = train_step_private(x_batch, y_batch, seq_len_batch, j)
                             if current_step % FLAGS.evaluate_every == 0:
                                 # 在 dev 数据集上验证模型：
-                                lhy_f, hj_f = final_test_step(current_step + shared_train_stop_step[j - 1],
+                                old_f, new_f = final_test_step(current_step + shared_train_stop_step[j - 1],
                                                               task_data[j - 1][1],
                                                               task_data[j - 1][2], j, summary=True)
-                                # tmp_f = evaluate_word_PRF(yp, yt)
-                                # tmp_f = get_metric_out(yp, yt)
-                                if best_accuary[j - 1] < hj_f:
+                                if best_accuary[j - 1] < new_f:
                                     # 如果是最优
-                                    best_accuary[j - 1] = hj_f
+                                    best_accuary[j - 1] = new_f
                                     best_step_private[j - 1] = current_step
-                                    # path = saver.save(sess, checkpoint_all[j - 1])
                                     private_save_path = task_private_saver[j - 1].save(sess, checkpoint_private[j - 1])
-                                    logger.info("Private train: Task {} got better F1:{} in step {}".format(j, hj_f,
+                                    logger.info("Private train: Task {} got better F1:{} in step {}".format(j, new_f,
                                                                                                             current_step))
                                     logger.info(
                                         ">>>>>>Saved shared model to {}, private mode to {}".format(shared_save_path,
                                                                                                     private_save_path))
-                                    # print("Private train: Task {} got better F1:{} in step {}".format(j, tmp_f,
-                                    #                                                                   current_step))
                                 
                                 elif current_step - best_step_private[j - 1] > FLAGS.private_early_stop_step:
                                     # 超过2000步都没有取得更好的结果
                                     logger.info(
                                         "Private train : Task {} early stop in step:{}".format(j, current_step))
-                                    # print("Task_{} didn't get better results in more than 100 steps".format(j))
                                     private_stop_flag[j - 1] = True
                 else:
-                    # print('Private train: Early stop triggered, all the tasks have been finished. Dropout:', DROP_OUT)
                     logger.info("Private train : Early stop triggered in epoch:{}".format(i))
                     break
         
@@ -706,9 +675,6 @@ with tf.Graph().as_default():
         # 结果对比：
         for i in range(FLAGS.num_corpus):
             logger.info('Shared train result: Task{} best F1:{:.2f}'.format(i + 1, shared_best_f1[i] * 100))
-            # print(
-            #     'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
-            #                                                                        best_accuary[i] * 100))
             logger.info(
                 'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
                                                                                    best_accuary[i] * 100))
@@ -722,11 +688,9 @@ with tf.Graph().as_default():
             shared_model_saver.restore(sess, shared_ckp)
             # 测试：
             for j in range(1, FLAGS.num_corpus + 1):
-                lhy_f, hj_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
                                               summary=False, print_predict=False)
-                # f1 = get_metric_out(yp, yt, print_metric=False, test=False)
-                # print("--Task {}, F1 {:.2f}".format(j, f1 * 100))
-                logger.info(">LoadFinalMode--Task {}, F1 {:.2f}".format(j, hj_f * 100))
+                logger.info(">LoadFinalMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
         
         if FLAGS.predict:
             """预测模式"""
@@ -739,7 +703,7 @@ with tf.Graph().as_default():
             for i in range(FLAGS.num_corpus):
                 print('Task:{}\n'.format(i + 1))
                 # task_data[i][3]是测试数据的 dataFrame（pandas 返回），[4]是测试数据的 iterator
-                lhy_f, hj_f = final_test_step(0, task_data[i][3], task_data[i][4], i + 1, print_predict=False)
+                old_f, new_f = final_test_step(0, task_data[i][3], task_data[i][4], i + 1, print_predict=False)
                 # evaluate_word_PRF(yp, yt)
                 # get_metric_out(yp, yt)
                 # todo:将预测输出写到文件中
