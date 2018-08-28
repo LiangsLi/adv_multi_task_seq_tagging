@@ -20,7 +20,7 @@ import data_helpers
 # ==================================================
 #  numpy 数组形式的单字、单词向量
 # 单字向量使用预训练向量，单词向量是字向量的简单组合
-init_embedding = Vocab('../data/insurance_wordvec.wv', '../data/real/word_vocab.txt', single_task=False,
+init_embedding = Vocab('../data/insurance_wordvec.wv', '../data/20_data/vocab.txt', single_task=False,
                        bi_gram=True).word_vectors
 parser = argparse.ArgumentParser()
 parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
@@ -29,7 +29,7 @@ parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
 parser.add_argument('--word_dim', default=100, type=int)
 parser.add_argument('--lstm_dim', default=100, type=int)
 parser.add_argument('--num_classes', default=4, type=int)
-parser.add_argument('--num_corpus', default=4, type=int)
+parser.add_argument('--num_corpus', default=20, type=int)
 parser.add_argument('--embed_status', default=True, type=bool)
 parser.add_argument('--gate_status', default=False, type=bool)
 
@@ -48,13 +48,13 @@ parser.add_argument('--batch_size', default=64, type=int)
 parser.add_argument('--batch_size_big', default=64, type=int)
 parser.add_argument('--batch_size_huge', default=64, type=int)
 # step
-parser.add_argument('--num_epochs', default=500, type=int)
-parser.add_argument('--num_epochs_private', default=500, type=int)
+parser.add_argument('--num_epochs', default=1000, type=int)
+parser.add_argument('--num_epochs_private', default=1000, type=int)
 parser.add_argument('--evaluate_every', default=10, type=int)
 
 # Early Stop
-parser.add_argument('--all_early_stop_step', default=100, type=int)
-parser.add_argument('--private_early_stop_step', default=100, type=int)
+parser.add_argument('--all_early_stop_step', default=200, type=int)
+parser.add_argument('--private_early_stop_step', default=200, type=int)
 
 # Misc Parameters
 parser.add_argument('--allow_soft_placement', default=True, type=bool)
@@ -113,19 +113,13 @@ test_data_iterator = []
 dev_df = []
 test_df = []
 
-TRAIN_FILE = ['../data/real/CSV/1/train.csv',
-              '../data/real/CSV/2/train.csv',
-              '../data/real/CSV/3/train.csv',
-              '../data/real/CSV/4/train.csv']
-DEV_FILE = ['../data/real/CSV/1/dev.csv',
-            '../data/real/CSV/2/dev.csv',
-            '../data/real/CSV/3/dev.csv',
-            '../data/real/CSV/4/dev.csv']
-TEST_FILE = ['',
-             '',
-             '',
-             '']
-# num_corpus = 4
+TRAIN_FILE = []
+DEV_FILE = []
+TEST_FILE = []
+for i in range(1,FLAGS.num_corpus+1):
+    TRAIN_FILE.append('../data/20_data/'+str(i)+'/train.csv')
+    DEV_FILE.append('../data/20_data/'+str(i)+"/dev.csv")
+    TEST_FILE.append('')
 
 print("Loading data...")
 # 加载数据。保存到对应列表

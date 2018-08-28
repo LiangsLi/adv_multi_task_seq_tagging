@@ -82,10 +82,9 @@ class Data_index(object):
                 for line in f:
                     temp = line.strip('\n').split('###')
                     word_idxs, tag_idxs = self.to_index(temp[0].split('||'), temp[1].split('||'))
-                    length=len(temp[0].split('||'))
-                    assert len(temp[1].split('||'))==length
+                    length = len(temp[0].split('||'))
+                    assert len(temp[1].split('||')) == length
                     output.writerow([word_idxs, tag_idxs, length])
-            
         
         # open file to write
         # if bigram is False:
@@ -164,22 +163,13 @@ class Data_index(object):
 
 if __name__ == '__main__':
     VOCABS = Vocab('/Users/liangs/Codes/insurance_data/insurance_wordvec.wv',
-                   '/Users/liangs/Codes/adversarial-multi-criteria-learning-for-CWS/data/real/word_vocab.txt',
+                   '../data/20_data/vocab.txt',
                    single_task=False,
                    bi_gram=True,
                    frequency=0)
     TAGS = Tag()  # tag2idx
     init_embedding = VOCABS.word_vectors  # word/char embedding
     da_idx = Data_index(VOCABS, TAGS)  #
-    da_idx.process_all_data('../data/real/CSV/1',
-                            '../data/real/CSV/1',
-                            True, multitask=False)
-    da_idx.process_all_data('../data/real/CSV/2',
-                            '../data/real/CSV/2',
-                            True, multitask=False)
-    da_idx.process_all_data('../data/real/CSV/3',
-                            '../data/real/CSV/3',
-                            True, multitask=False)
-    da_idx.process_all_data('../data/real/CSV/4',
-                            '../data/real/CSV/4',
-                            True, multitask=False)
+    for i in range(1, 21):
+        path = "../data/20_data/" + str(i)
+        da_idx.process_all_data(path, path, True, multitask=False)
