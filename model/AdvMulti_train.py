@@ -36,6 +36,7 @@ parser.add_argument('--gate_status', default=False, type=bool)
 # predict ? train ?
 parser.add_argument('--predict', default=False, type=bool)
 parser.add_argument('--train', default=True, type=bool)
+parser.add_argument('--private_train', default=True, type=bool)
 
 # Model Hyperparameters[t]
 parser.add_argument('--lr', default=0.01, type=float)
@@ -60,6 +61,10 @@ parser.add_argument('--private_early_stop_step', default=200, type=int)
 parser.add_argument('--allow_soft_placement', default=True, type=bool)
 parser.add_argument('--log_device_placement', default=False, type=bool)
 parser.add_argument('--gpu_growth', default=True, type=bool)
+
+# checkpoint
+parser.add_argument('--use_given_ckp', default=False, type=bool)
+parser.add_argument('--pre_trained_ckp', default='', type=str)
 FLAGS = parser.parse_args()
 # if FLAGS.embed_status is False:
 #     不使用预训练词向量
@@ -117,17 +122,20 @@ TRAIN_FILE = []
 DEV_FILE = []
 TEST_FILE = []
 DROP_OUT = []
+BUCKETS_NUM = []
 for i in range(1, FLAGS.num_corpus + 1):
     TRAIN_FILE.append('../data/20_data/' + str(i) + '/train.csv')
     DEV_FILE.append('../data/20_data/' + str(i) + "/dev.csv")
     TEST_FILE.append('')
     DROP_OUT.append(0.65)
+    BUCKETS_NUM.append(max(5, 10 - i // 3))
 
 print("Loading data...")
 # 加载数据。保存到对应列表
 for i in range(FLAGS.num_corpus):
     # task data 0
-    train_data_iterator.append(data_helpers.BucketedDataIterator(pd.read_csv(TRAIN_FILE[i])))
+    train_data_iterator.append(
+        data_helpers.BucketedDataIterator(pd.read_csv(TRAIN_FILE[i]), num_buckets=BUCKETS_NUM[i]))
     # task data 1
     dev_df.append(pd.read_csv(DEV_FILE[i]))
     # task data 2
@@ -178,17 +186,12 @@ with tf.Graph().as_default():
         # shutil.rmtree(os.path.join(os.path.curdir, "models", model_name))
         # except:
         #     pass
-        out_dir = os.path.abspath(os.path.join(os.path.pardir, "checkpoints", model_name))
-        
-        print("Writing to {}\n".format(out_dir))
-        
-        # Checkpoint directory. Tensorflow assumes this directory already exists so we need to create it
-        # modeli_embed_adv_gate_diff_dropout
-        checkpoint_dir = os.path.abspath(os.path.join(out_dir, "checkpoints"))
-        checkpoint_all = []
-        for i in range(1, FLAGS.num_corpus + 1):
-            filename = 'task' + str(i)
-            checkpoint_all.append(os.path.join(checkpoint_dir, filename))
+        if FLAGS.use_given_ckp:
+            checkpoint_dir = FLAGS.pre_trained_ckp
+        else:
+            out_dir = os.path.abspath(os.path.join(os.path.pardir, "checkpoints", model_name))
+            print("Writing to {}\n".format(out_dir))
+            checkpoint_dir = os.path.abspath(os.path.join(out_dir, "checkpoints"))
         
         checkpoint_private = []
         checkpoint_shared = []
@@ -216,11 +219,11 @@ with tf.Graph().as_default():
                     temp.append(var)
             task_private_vars.append(temp)
         
-        shared_model_saver = tf.train.Saver(shared_vars, max_to_keep=20)
+        shared_model_saver = tf.train.Saver(shared_vars, max_to_keep=200)
         task_private_saver = []
         for i in range(FLAGS.num_corpus):
-            task_private_saver.append(tf.train.Saver(task_private_vars[i], max_to_keep=20))
-        saver = tf.train.Saver(tf.global_variables(), max_to_keep=20)
+            task_private_saver.append(tf.train.Saver(task_private_vars[i], max_to_keep=200))
+        saver = tf.train.Saver(tf.global_variables(), max_to_keep=200)
         
         summ_path = pathlib.Path('../summaries')
         if not summ_path.exists():
@@ -525,16 +528,15 @@ with tf.Graph().as_default():
         
         ########################################################
         # train loop
+        best_accuary = [0.0] * FLAGS.num_corpus
+        best_step_all = [0] * FLAGS.num_corpus
+        best_pval = [0.0] * FLAGS.num_corpus
+        best_rval = [0.0] * FLAGS.num_corpus
+        best_fval = [0.0] * FLAGS.num_corpus
+        best_step_private = [0] * FLAGS.num_corpus
+        private_stop_flag = [False] * FLAGS.num_corpus
+        all_stop_flag = [False] * FLAGS.num_corpus
         if FLAGS.train:
-            best_accuary = [0.0] * FLAGS.num_corpus
-            best_step_all = [0] * FLAGS.num_corpus
-            best_pval = [0.0] * FLAGS.num_corpus
-            best_rval = [0.0] * FLAGS.num_corpus
-            best_fval = [0.0] * FLAGS.num_corpus
-            best_step_private = [0] * FLAGS.num_corpus
-            private_stop_flag = [False] * FLAGS.num_corpus
-            all_stop_flag = [False] * FLAGS.num_corpus
-            
             logger.info('-------------train starts:{}--------------'.format(time_stamp))
             for i in range(FLAGS.num_epochs):
                 # 逐个语料训练
@@ -604,15 +606,21 @@ with tf.Graph().as_default():
                 logger.info(
                     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
                                                                                       best_accuary[i] * 100))
-            
-            for j in range(1, FLAGS.num_corpus + 1):
-                task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
-            
-            shared_model_scores = []
-            shared_f1s = []
-            for shared_ckp in checkpoint_shared:
-                logger.info('use: ' + shared_ckp)
+        
+        # 加载共享训练的参数：
+        for j in range(1, FLAGS.num_corpus + 1):
+            task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
+        
+        shared_model_scores = []
+        shared_f1s = []
+        for shared_ckp in checkpoint_shared:
+            logger.info('use: ' + shared_ckp)
+            try:
                 shared_model_saver.restore(sess, shared_ckp)
+            except Exception as e:
+                logger.warning("can't load :" + shared_ckp)
+                temp = [0] * FLAGS.num_corpus
+            else:
                 # 测试：
                 temp = []
                 for j in range(1, FLAGS.num_corpus + 1):
@@ -620,16 +628,18 @@ with tf.Graph().as_default():
                                                    summary=False, print_predict=False)
                     logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
                     temp.append(new_f)
-                shared_model_scores.append(sum(temp))
-                shared_f1s.append(temp)
-            # 选择最优：
-            best_shared_model = np.argmax(shared_model_scores)
-            shared_model_saver.restore(sess, checkpoint_shared[best_shared_model])
-            shared_best_f1 = shared_f1s[best_shared_model]
-            print("##" * 10)
-            logger.info("LoadSharedModel> Choose: " + checkpoint_shared[best_shared_model])
-            # raise RuntimeError('stop')
-            
+            shared_model_scores.append(sum(temp))
+            shared_f1s.append(temp)
+        # 选择最优：
+        best_shared_model = np.argmax(shared_model_scores)
+        shared_model_saver.restore(sess, checkpoint_shared[best_shared_model])
+        shared_best_f1 = shared_f1s[best_shared_model]
+        print("##" * 10)
+        logger.info("LoadSharedModel> Choose: " + checkpoint_shared[best_shared_model] + " ,average F1: " + max(
+            shared_model_scores) / FLAGS.num_corpus)
+        # raise RuntimeError('stop')
+        best_accuary = shared_best_f1
+        if FLAGS.private_train:
             for i in range(FLAGS.num_epochs_private):
                 stop = True
                 for j in range(FLAGS.num_corpus):
@@ -660,8 +670,7 @@ with tf.Graph().as_default():
                                     logger.info("Private train: Task {} got better F1:{} in step {}".format(j, new_f,
                                                                                                             current_step))
                                     logger.info(
-                                        ">>>>>>Saved shared model to {}, private mode to {}".format(shared_save_path,
-                                                                                                    private_save_path))
+                                        ">>>>>>Saved private mode to {}".format(private_save_path))
                                 
                                 elif current_step - best_step_private[j - 1] > FLAGS.private_early_stop_step:
                                     # 超过2000步都没有取得更好的结果

@@ -3,7 +3,7 @@ import numpy as np
 
 
 class BucketedDataIterator(object):
-    def __init__(self, df, num_buckets=10):
+    def __init__(self, df, num_buckets=5):
         """
         
         :param df:  dataFrame（pandas.read_csv()）
@@ -72,8 +72,13 @@ class BucketedDataIterator(object):
             # 注意是 任何一个桶！！
             self.epochs += 1
             self.shuffle()
-        # 随机选择一个桶
+        # 随机选择一个桶!!!
+        # 如果需要根据桶的不同改变 batch size 的大小，需要知道使用的哪一个桶
         i = np.random.randint(0, self.num_buckets)
+        if i == self.num_buckets - 1:
+            batch_size = 16
+        else:
+            batch_size = int(max(16, batch_size / (2 ** (i // (self.num_buckets // 2)))))
         # 在随机选择的桶中，取出一个 batch 的数据
         res = self.dfs[i].ix[self.cursor[i]:self.cursor[i] + batch_size - 1]
         # words = map(lambda x: map(int, x.split("||")), res['words'].tolist())
@@ -118,6 +123,7 @@ class BucketedDataIterator(object):
                                                                                                    dtype=np.int32)
     
     def next_all_batch(self, batch_size, bigram=False):
+        # 注意这里不需要担心数组越界的问题,pandas会自己处理
         res = self.df.ix[self.pos: self.pos + batch_size - 1]
         # words = map(lambda x: map(int, x.split(",")), res['words'].tolist())
         # tags = map(lambda x: map(int, x.split(",")), res['tags'].tolist())
