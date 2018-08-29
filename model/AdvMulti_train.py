@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 import argparse
 import pathlib
 from voc import Vocab, Tag
-from config import DROP_OUT, MODEL_TYPE, ADV_STATUS
+from config import MODEL_TYPE, ADV_STATUS
 
 from AdvMulti_model import MultiModel
 import data_helpers
@@ -27,7 +27,7 @@ parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
 
 # Data parameters
 parser.add_argument('--word_dim', default=100, type=int)
-parser.add_argument('--lstm_dim', default=100, type=int)
+parser.add_argument('--lstm_dim', defaultvim=100, type=int)
 parser.add_argument('--num_classes', default=4, type=int)
 parser.add_argument('--num_corpus', default=20, type=int)
 parser.add_argument('--embed_status', default=True, type=bool)
@@ -116,10 +116,12 @@ test_df = []
 TRAIN_FILE = []
 DEV_FILE = []
 TEST_FILE = []
-for i in range(1,FLAGS.num_corpus+1):
-    TRAIN_FILE.append('../data/20_data/'+str(i)+'/train.csv')
-    DEV_FILE.append('../data/20_data/'+str(i)+"/dev.csv")
+DROP_OUT = []
+for i in range(1, FLAGS.num_corpus + 1):
+    TRAIN_FILE.append('../data/20_data/' + str(i) + '/train.csv')
+    DEV_FILE.append('../data/20_data/' + str(i) + "/dev.csv")
     TEST_FILE.append('')
+    DROP_OUT.append(0.65)
 
 print("Loading data...")
 # 加载数据。保存到对应列表
@@ -374,7 +376,9 @@ with tf.Graph().as_default():
                     if len(I_list) != 0:
                         begin = I_list[0]
                         end = I_list[-1]
-                
+                if begin < end:
+                    begin = -1
+                    end = -1
                 return begin, end
             
             def get_match_size(pred_one, real_one):
@@ -435,15 +439,19 @@ with tf.Graph().as_default():
                     try:
                         retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
                     except ZeroDivisionError as e:
-                        logger.warning("Warning: "+str(e))
-                        logger.warning("pb:{},pe:{},rb:{},re:{},ms:{}".format(pred_begin, pred_end, real_begin, real_end,match_size))
+                        logger.warning("Warning: " + str(e))
+                        logger.warning(
+                            "pb:{},pe:{},rb:{},re:{},ms:{}".format(pred_begin, pred_end, real_begin, real_end,
+                                                                   match_size))
                         raise RuntimeError("stop:ZeroDivisionError")
                     if retio >= 0.8:
                         pred_right_num += 1
                         flag3 = True
                     if (not flag1 and flag3) or (not flag2 and flag3):
                         logger.warning("Warning: flag1/2=False but flag3=True")
-                        logger.warning("pb:{},pe:{},rb:{},re:{},ms:{},r:{}".format(pred_begin, pred_end, real_begin, real_end,match_size,retio))
+                        logger.warning(
+                            "pb:{},pe:{},rb:{},re:{},ms:{},r:{}".format(pred_begin, pred_end, real_begin, real_end,
+                                                                        match_size, retio))
                         raise RuntimeError("stop:flag1/2=False but flag3=True")
                 
                 old_P = np.mean(old_P_values)
@@ -570,7 +578,7 @@ with tf.Graph().as_default():
                         # print('current_step: ', current_step)
                         # 在dev数据集上验证模型：
                         old_f, new_f = final_test_step(current_step, task_data[j - 1][1], task_data[j - 1][2], j,
-                                                      summary=True)
+                                                       summary=True)
                         if best_accuary[j - 1] < new_f:
                             best_accuary[j - 1] = new_f
                             best_step_all[j - 1] = current_step
@@ -597,7 +605,6 @@ with tf.Graph().as_default():
                     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
                                                                                       best_accuary[i] * 100))
             
-            
             for j in range(1, FLAGS.num_corpus + 1):
                 task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
             
@@ -610,7 +617,7 @@ with tf.Graph().as_default():
                 temp = []
                 for j in range(1, FLAGS.num_corpus + 1):
                     old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                                  summary=False, print_predict=False)
+                                                   summary=False, print_predict=False)
                     logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
                     temp.append(new_f)
                 shared_model_scores.append(sum(temp))
@@ -643,8 +650,8 @@ with tf.Graph().as_default():
                             if current_step % FLAGS.evaluate_every == 0:
                                 # 在 dev 数据集上验证模型：
                                 old_f, new_f = final_test_step(current_step + shared_train_stop_step[j - 1],
-                                                              task_data[j - 1][1],
-                                                              task_data[j - 1][2], j, summary=True)
+                                                               task_data[j - 1][1],
+                                                               task_data[j - 1][2], j, summary=True)
                                 if best_accuary[j - 1] < new_f:
                                     # 如果是最优
                                     best_accuary[j - 1] = new_f
@@ -683,7 +690,7 @@ with tf.Graph().as_default():
             # 测试：
             for j in range(1, FLAGS.num_corpus + 1):
                 old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                              summary=False, print_predict=False)
+                                               summary=False, print_predict=False)
                 logger.info(">LoadFinalMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
         
         if FLAGS.predict:
