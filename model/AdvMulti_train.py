@@ -27,7 +27,7 @@ parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
 
 # Data parameters
 parser.add_argument('--word_dim', default=100, type=int)
-parser.add_argument('--lstm_dim', defaultvim=100, type=int)
+parser.add_argument('--lstm_dim', default=100, type=int)
 parser.add_argument('--num_classes', default=4, type=int)
 parser.add_argument('--num_corpus', default=20, type=int)
 parser.add_argument('--embed_status', default=True, type=bool)
@@ -376,7 +376,7 @@ with tf.Graph().as_default():
                     if len(I_list) != 0:
                         begin = I_list[0]
                         end = I_list[-1]
-                if begin < end:
+                if begin > end:
                     begin = -1
                     end = -1
                 return begin, end
