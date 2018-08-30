@@ -29,7 +29,7 @@ parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
 parser.add_argument('--word_dim', default=100, type=int)
 parser.add_argument('--lstm_dim', default=100, type=int)
 parser.add_argument('--num_classes', default=4, type=int)
-parser.add_argument('--num_corpus', default=20, type=int)
+parser.add_argument('--num_corpus', default=1, type=int)
 parser.add_argument('--embed_status', default=True, type=bool)
 parser.add_argument('--gate_status', default=False, type=bool)
 
@@ -65,6 +65,10 @@ parser.add_argument('--gpu_growth', default=True, type=bool)
 # checkpoint
 parser.add_argument('--use_given_ckp', default=False, type=bool)
 parser.add_argument('--pre_trained_ckp', default='', type=str)
+
+# show final result
+parser.add_argument('--show_final_result',default=True,type=bool)
+
 FLAGS = parser.parse_args()
 # if FLAGS.embed_status is False:
 #     不使用预训练词向量
@@ -124,8 +128,8 @@ TEST_FILE = []
 DROP_OUT = []
 BUCKETS_NUM = []
 for i in range(1, FLAGS.num_corpus + 1):
-    TRAIN_FILE.append('../data/20_data/' + str(i) + '/train.csv')
-    DEV_FILE.append('../data/20_data/' + str(i) + "/dev.csv")
+    TRAIN_FILE.append('../data/real/CSV/' + str(i) + '/train.csv')
+    DEV_FILE.append('../data/real/CSV/' + str(i) + "/dev.csv")
     TEST_FILE.append('')
     DROP_OUT.append(0.65)
     BUCKETS_NUM.append(max(5, 10 - i // 3))
@@ -148,6 +152,41 @@ for i in range(FLAGS.num_corpus):
 logger.info('-' * 50)
 
 shared_train_stop_step = [FLAGS.num_epochs] * FLAGS.num_corpus
+
+
+def Load_pkbs():
+    global j, shared_ckp, temp, old_f, new_f, shared_best_f1
+    # 加载共享训练的参数：
+    for j in range(1, FLAGS.num_corpus + 1):
+        task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
+    shared_model_scores = []
+    shared_f1s = []
+    for shared_ckp in checkpoint_shared:
+        logger.info('use: ' + shared_ckp)
+        try:
+            shared_model_saver.restore(sess, shared_ckp)
+        except Exception as e:
+            logger.warning("can't load :" + shared_ckp)
+            temp = [0] * FLAGS.num_corpus
+        else:
+            # 测试：
+            temp = []
+            for j in range(1, FLAGS.num_corpus + 1):
+                old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                                               summary=False, print_predict=False)
+                logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
+                temp.append(new_f)
+        shared_model_scores.append(sum(temp))
+        shared_f1s.append(temp)
+    # 选择最优：
+    best_shared_model = np.argmax(shared_model_scores)
+    shared_model_saver.restore(sess, checkpoint_shared[best_shared_model])
+    shared_best_f1 = shared_f1s[best_shared_model]
+    print("##" * 10)
+    logger.info("LoadSharedModel> Choose: " + checkpoint_shared[best_shared_model] + " ,average F1: " + str(max(
+        shared_model_scores) / FLAGS.num_corpus))
+
+
 # shared_train_best_step = [0] * FLAGS.num_corpus
 # Training
 # ==================================================
@@ -606,38 +645,12 @@ with tf.Graph().as_default():
                 logger.info(
                     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
                                                                                       best_accuary[i] * 100))
-        
-        # 加载共享训练的参数：
-        for j in range(1, FLAGS.num_corpus + 1):
-            task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
-        
-        shared_model_scores = []
-        shared_f1s = []
-        for shared_ckp in checkpoint_shared:
-            logger.info('use: ' + shared_ckp)
-            try:
-                shared_model_saver.restore(sess, shared_ckp)
-            except Exception as e:
-                logger.warning("can't load :" + shared_ckp)
-                temp = [0] * FLAGS.num_corpus
-            else:
-                # 测试：
-                temp = []
-                for j in range(1, FLAGS.num_corpus + 1):
-                    old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                                   summary=False, print_predict=False)
-                    logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
-                    temp.append(new_f)
-            shared_model_scores.append(sum(temp))
-            shared_f1s.append(temp)
-        # 选择最优：
-        best_shared_model = np.argmax(shared_model_scores)
-        shared_model_saver.restore(sess, checkpoint_shared[best_shared_model])
-        shared_best_f1 = shared_f1s[best_shared_model]
-        print("##" * 10)
-        logger.info("LoadSharedModel> Choose: " + checkpoint_shared[best_shared_model] + " ,average F1: " + max(
-            shared_model_scores) / FLAGS.num_corpus)
+            logger.info(">>>>>>>>>>>>>>>>Shared Train Done<<<<<<<<<<<<<<<")
+
+            
+        Load_pkbs()
         # raise RuntimeError('stop')
+        
         best_accuary = shared_best_f1
         if FLAGS.private_train:
             for i in range(FLAGS.num_epochs_private):
@@ -680,27 +693,15 @@ with tf.Graph().as_default():
                 else:
                     logger.info("Private train : Early stop triggered in epoch:{}".format(i))
                     break
-        
-        logger.info(">>>>>>>>>>>>>>>>Train Done<<<<<<<<<<<<<<<")
-        # 结果对比：
-        for i in range(FLAGS.num_corpus):
-            logger.info('Shared train result: Task{} best F1:{:.2f}'.format(i + 1, shared_best_f1[i] * 100))
-            logger.info(
-                'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
-                                                                                   best_accuary[i] * 100))
-        # 加载私有模块：
-        sess.run(tf.global_variables_initializer())
-        for j in range(1, FLAGS.num_corpus + 1):
-            task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
-        
-        for shared_ckp in checkpoint_shared:
-            logger.info('use: ' + shared_ckp)
-            shared_model_saver.restore(sess, shared_ckp)
-            # 测试：
-            for j in range(1, FLAGS.num_corpus + 1):
-                old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                               summary=False, print_predict=False)
-                logger.info(">LoadFinalMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
+            logger.info(">>>>>>>>>>>>>>>>Private Train Done<<<<<<<<<<<<<<<")
+            # 结果对比：
+            for i in range(FLAGS.num_corpus):
+                logger.info('Shared train result: Task{} best F1:{:.2f}'.format(i + 1, shared_best_f1[i] * 100))
+                logger.info(
+                    'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
+                                                                                       best_accuary[i] * 100))
+        if FLAGS.show_final_result:
+            Load_pkbs()
         
         if FLAGS.predict:
             """预测模式"""
