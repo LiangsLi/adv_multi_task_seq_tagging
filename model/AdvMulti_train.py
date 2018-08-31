@@ -29,9 +29,10 @@ parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
 parser.add_argument('--word_dim', default=100, type=int)
 parser.add_argument('--lstm_dim', default=100, type=int)
 parser.add_argument('--num_classes', default=4, type=int)
-parser.add_argument('--num_corpus', default=1, type=int)
+parser.add_argument('--num_corpus', default=20, type=int)
 parser.add_argument('--embed_status', default=True, type=bool)
 parser.add_argument('--gate_status', default=False, type=bool)
+parser.add_argument('--embedding_trainable', default=False, type=bool)
 
 # predict ? train ?
 parser.add_argument('--predict', default=False, type=bool)
@@ -67,7 +68,7 @@ parser.add_argument('--use_given_ckp', default=False, type=bool)
 parser.add_argument('--pre_trained_ckp', default='', type=str)
 
 # show final result
-parser.add_argument('--show_final_result',default=True,type=bool)
+parser.add_argument('--show_final_result', default=True, type=bool)
 
 FLAGS = parser.parse_args()
 # if FLAGS.embed_status is False:
@@ -93,7 +94,7 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 logger.setLevel(logging.INFO)
-
+logger.info('log file:', str(logger_file_path / time_stamp))
 if MODEL_TYPE == 'Model1':
     reuse_status = True
     sep_status = True
@@ -128,8 +129,8 @@ TEST_FILE = []
 DROP_OUT = []
 BUCKETS_NUM = []
 for i in range(1, FLAGS.num_corpus + 1):
-    TRAIN_FILE.append('../data/real/CSV/' + str(i) + '/train.csv')
-    DEV_FILE.append('../data/real/CSV/' + str(i) + "/dev.csv")
+    TRAIN_FILE.append('../data/20_data/' + str(i) + '/train.csv')
+    DEV_FILE.append('../data/20_data/' + str(i) + "/dev.csv")
     TEST_FILE.append('')
     DROP_OUT.append(0.65)
     BUCKETS_NUM.append(max(5, 10 - i // 3))
@@ -216,7 +217,9 @@ with tf.Graph().as_default():
                            gates=FLAGS.gate_status,
                            adv=False,
                            reuseshare=reuse_status,
-                           sep=sep_status)
+                           sep=sep_status,
+                           embedding_trainable=FLAGS.embedding_trainable,
+                           )
         
         # Output directory for models
         model_name = 'multi_task_' + str(FLAGS.num_corpus) + '_' + time_stamp
@@ -646,11 +649,10 @@ with tf.Graph().as_default():
                     'After shared train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_all[i],
                                                                                       best_accuary[i] * 100))
             logger.info(">>>>>>>>>>>>>>>>Shared Train Done<<<<<<<<<<<<<<<")
-
-            
+        
         Load_pkbs()
         # raise RuntimeError('stop')
-        
+        # 私有训练：
         best_accuary = shared_best_f1
         if FLAGS.private_train:
             for i in range(FLAGS.num_epochs_private):
@@ -700,6 +702,7 @@ with tf.Graph().as_default():
                 logger.info(
                     'After Private train, Task{} best step is {} and F1:{:.2f}'.format(i + 1, best_step_private[i],
                                                                                        best_accuary[i] * 100))
+        
         if FLAGS.show_final_result:
             Load_pkbs()
         

@@ -31,7 +31,7 @@ class MultiModel(object):
                  gates=False,
                  adv=True,
                  reuseshare=True,
-                 sep=True):
+                 sep=True, embedding_trainable=False):
         
         def get_LSTM_cell(size):
             
@@ -245,11 +245,12 @@ class MultiModel(object):
             self.init_embedding = np.zeros([vocab_size, word_dim], dtype=np.float32)
         else:
             self.init_embedding = init_embedding
+            print("Use pre_trained embedding,Trainable is :{}", embedding_trainable)
         # embedding scope 下 定义 embedding variable
         with tf.variable_scope("embedding") as scope:
             self.embedding = tf.Variable(
                 self.init_embedding,
-                name="embedding")
+                name="embedding", trainable=embedding_trainable)
         seq_len = tf.cast(self.seq_len, tf.int64)
         x = tf.nn.embedding_lookup(self.embedding, self.x)  # batch_size * (sequence) * word_dim  (九种语料)
         # print(x.shape)
