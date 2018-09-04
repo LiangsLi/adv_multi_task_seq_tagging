@@ -94,7 +94,7 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 logger.setLevel(logging.INFO)
-logger.info('log file:'+ str(logger_file_path / time_stamp))
+logger.info('log file:' + str(logger_file_path / time_stamp))
 if MODEL_TYPE == 'Model1':
     reuse_status = True
     sep_status = True
@@ -382,49 +382,40 @@ with tf.Graph().as_default():
             """测试predict/test、验证dev"""
             
             def get_begin_end(idxs, tag):
-                
-                begin = -1
-                end = -1
                 if FLAGS.num_classes == 4:
-                    B_list = []
-                    E_list = []
-                    M_list = []
-                    for i_, item in enumerate(idxs):
-                        label = tag.idx2tag[item]
-                        if label == 'B':
-                            B_list.append(i_)
-                        elif label == 'E':
-                            E_list.append(i_)
-                        elif label == 'M':
-                            M_list.append(i_)
-                    if len(B_list) == len(E_list) and len(B_list) != 0:
-                        begin = B_list[0]
-                        end = E_list[0]
-                    elif len(B_list) != 0 or len(E_list) != 0:
-                        if len(M_list) != 0:
-                            if len(B_list) == 0:
-                                begin = M_list[0]
-                            else:
-                                begin = B_list[0]
-                            if len(E_list) == 0:
-                                end = M_list[-1]
-                            else:
-                                end = E_list[0]
-                    elif len(M_list) != 0:
-                        begin = M_list[0]
-                        end = M_list[-1]
-                elif FLAGS.num_classes == 2:
-                    I_list = []
-                    for i_, item in enumerate(idxs):
-                        if tag.idx2tag[item] == 'I':
-                            I_list.append(i_)
-                    if len(I_list) != 0:
-                        begin = I_list[0]
-                        end = I_list[-1]
-                if begin > end:
-                    begin = -1
-                    end = -1
-                return begin, end
+                    b_l = []
+                    e_l = []
+                    find_b = False
+                    for i in range(len(idxs)):
+                        if not find_b and tag.idx2tag[idxs[i]] == 'M':
+                            b_l.append(i)
+                            find_b = True
+                            continue
+                        if i > 0 and tag.idx2tag[idxs[i]] == 'O' and tag.idx2tag[idxs[i - 1]] == 'M' and find_b:
+                            e_l.append(i)
+                            continue
+                        if i == len(idxs) - 1 and tag.idx2tag[idxs[i]] == 'M' and find_b:
+                            e_l.append(i)
+                            continue
+                        if tag.idx2tag[idxs[i]] == 'B':
+                            b_l.append(i)
+                            find_b = True
+                            continue
+                        if tag.idx2tag[idxs[i]] == 'E':
+                            e_l.append(i)
+                            continue
+                        if tag.idx2tag[idxs[i]] == 'O':
+                            find_b = False
+                    
+                    if len(b_l) != len(e_l):
+                        min_length = min(len(b_l), len(e_l))
+                        b_l = b_l[:min_length]
+                        e_l = e_l[:min_length]
+                    result = []
+                    for a, b in zip(b_l, e_l):
+                        if a <= b:
+                            result.append((a, b))
+                    return result
             
             def get_match_size(pred_one, real_one):
                 if (real_one[0], real_one[1]) == (-1, -1) or (pred_one[0], pred_one[1]) == (-1, -1):
@@ -471,33 +462,27 @@ with tf.Graph().as_default():
                                               # (TP + FP) 预测数据的知识点总数 pred_data_num
                     f = 2 * p * r / (p + r)
                     """
-                    flag1, flag2, flag3 = False, False, False
-                    pred_begin, pred_end = get_begin_end(y_pred, Tags)
-                    real_begin, real_end = get_begin_end(y, Tags)
-                    if pred_begin != -1 and pred_end != -1:
-                        pred_data_num += 1
-                        flag1 = True
-                    if real_begin != -1 and real_end != -1:
-                        real_data_num += 1
-                        flag2 = True
-                    match_size = get_match_size((pred_begin, pred_end), (real_begin, real_end))
-                    try:
-                        retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
-                    except ZeroDivisionError as e:
-                        logger.warning("Warning: " + str(e))
-                        logger.warning(
-                            "pb:{},pe:{},rb:{},re:{},ms:{}".format(pred_begin, pred_end, real_begin, real_end,
-                                                                   match_size))
-                        raise RuntimeError("stop:ZeroDivisionError")
-                    if retio >= 0.8:
-                        pred_right_num += 1
-                        flag3 = True
-                    if (not flag1 and flag3) or (not flag2 and flag3):
-                        logger.warning("Warning: flag1/2=False but flag3=True")
-                        logger.warning(
-                            "pb:{},pe:{},rb:{},re:{},ms:{},r:{}".format(pred_begin, pred_end, real_begin, real_end,
-                                                                        match_size, retio))
-                        raise RuntimeError("stop:flag1/2=False but flag3=True")
+                    pred_result = get_begin_end(y_pred, Tags)
+                    real_result = get_begin_end(y, Tags)
+                    pred_data_num += len(pred_result)
+                    real_data_num += len(real_result)
+                    if len(real_result) != len(pred_result):
+                        min_len = min(len(real_result), len(pred_result))
+                        real_result = real_result[:min_len]
+                        pred_result = pred_result[:min_len]
+                    if len(real_result) != 0:
+                        for (real_begin, real_end), (pred_begin, pred_end) in zip(real_result, pred_result):
+                            match_size = get_match_size((pred_begin, pred_end), (real_begin, real_end))
+                            try:
+                                retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
+                            except ZeroDivisionError as e:
+                                logger.warning("Warning: " + str(e))
+                                logger.warning(
+                                    "pb:{},pe:{},rb:{},re:{},ms:{}".format(pred_begin, pred_end, real_begin, real_end,
+                                                                           match_size))
+                                raise RuntimeError("stop:ZeroDivisionError")
+                            if retio >= 0.8:
+                                pred_right_num += 1
                 
                 old_P = np.mean(old_P_values)
                 old_R = np.mean(old_R_values)

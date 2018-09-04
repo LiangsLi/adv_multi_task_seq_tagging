@@ -425,13 +425,13 @@ class MultiModel(object):
         """
         # y_pred, y_true = [], []
         samples = []
+        losses = []
         num_batches = int((N - 1) / self.batch_size)
         for i in range(num_batches):
             # 多个 batch，逐个batch 处理：
             x_batch, y_batch, seq_len_batch = batch_iterator.next_all_batch(self.batch_size)
             
             # infer predictions
-            losses = []
             if summary:
                 feed_dict = {
                     self.x: x_batch,
