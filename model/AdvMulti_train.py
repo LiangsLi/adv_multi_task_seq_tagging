@@ -20,7 +20,7 @@ import data_helpers
 # ==================================================
 #  numpy 数组形式的单字、单词向量
 # 单字向量使用预训练向量，单词向量是字向量的简单组合
-init_embedding = Vocab('../data/insurance_wordvec.wv', '../data/20_data/vocab.txt', single_task=False,
+init_embedding = Vocab('../data/insurance_wordvec.wv', '../data/20_data_v1/vocab.txt', single_task=False,
                        bi_gram=True).word_vectors
 parser = argparse.ArgumentParser()
 parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
@@ -32,7 +32,7 @@ parser.add_argument('--num_classes', default=4, type=int)
 parser.add_argument('--num_corpus', default=20, type=int)
 parser.add_argument('--embed_status', default=True, type=bool)
 parser.add_argument('--gate_status', default=False, type=bool)
-parser.add_argument('--embedding_trainable', default=False, type=bool)
+parser.add_argument('--embedding_trainable', default=True, type=bool)
 
 # predict ? train ?
 parser.add_argument('--predict', default=False, type=bool)
@@ -94,7 +94,7 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 logger.setLevel(logging.INFO)
-logger.info('log file:', str(logger_file_path / time_stamp))
+logger.info('log file:'+ str(logger_file_path / time_stamp))
 if MODEL_TYPE == 'Model1':
     reuse_status = True
     sep_status = True
@@ -129,11 +129,11 @@ TEST_FILE = []
 DROP_OUT = []
 BUCKETS_NUM = []
 for i in range(1, FLAGS.num_corpus + 1):
-    TRAIN_FILE.append('../data/20_data/' + str(i) + '/train.csv')
-    DEV_FILE.append('../data/20_data/' + str(i) + "/dev.csv")
+    TRAIN_FILE.append('../data/20_data_v2/' + str(i) + '/train.csv')
+    DEV_FILE.append('../data/20_data_v2/' + str(i) + "/dev.csv")
     TEST_FILE.append('')
-    DROP_OUT.append(0.65)
-    BUCKETS_NUM.append(max(5, 10 - i // 3))
+    DROP_OUT.append(0.80)
+    BUCKETS_NUM.append(max(5, 8 - i // 3))
 
 print("Loading data...")
 # 加载数据。保存到对应列表
