@@ -66,9 +66,9 @@ parser.add_argument('--gpu_growth', default=True, type=bool)
 # checkpoint
 parser.add_argument('--use_given_ckp', default=False, type=bool)
 parser.add_argument('--pre_trained_ckp', default='', type=str)
-
 # show final result
 parser.add_argument('--show_final_result', default=True, type=bool)
+parser.add_argument('--use_one_shared_ckp', default=-1, type=int)
 
 FLAGS = parser.parse_args()
 # if FLAGS.embed_status is False:
@@ -155,37 +155,48 @@ logger.info('-' * 50)
 shared_train_stop_step = [FLAGS.num_epochs] * FLAGS.num_corpus
 
 
-def Load_pkbs():
+def Load_pkbs(use_shared_ckp_idx=-1):
     global j, shared_ckp, temp, old_f, new_f, shared_best_f1
     # 加载共享训练的参数：
     for j in range(1, FLAGS.num_corpus + 1):
         task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
     shared_model_scores = []
     shared_f1s = []
-    for shared_ckp in checkpoint_shared:
-        logger.info('use: ' + shared_ckp)
-        try:
-            shared_model_saver.restore(sess, shared_ckp)
-        except Exception as e:
-            logger.warning("can't load :" + shared_ckp)
-            temp = [0] * FLAGS.num_corpus
-        else:
-            # 测试：
-            temp = []
-            for j in range(1, FLAGS.num_corpus + 1):
-                old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                               summary=False, print_predict=False)
-                logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
-                temp.append(new_f)
-        shared_model_scores.append(sum(temp))
-        shared_f1s.append(temp)
-    # 选择最优：
-    best_shared_model = np.argmax(shared_model_scores)
-    shared_model_saver.restore(sess, checkpoint_shared[best_shared_model])
-    shared_best_f1 = shared_f1s[best_shared_model]
-    print("##" * 10)
-    logger.info("LoadSharedModel> Choose: " + checkpoint_shared[best_shared_model] + " ,average F1: " + str(max(
-        shared_model_scores) / FLAGS.num_corpus))
+    if use_shared_ckp_idx != -1:
+        assert (isinstance(use_shared_ckp_idx, int) and use_shared_ckp_idx <= FLAGS.num_corpus), "bad use one ckp"
+        shared_model_saver.restore(sess, checkpoint_shared[use_shared_ckp_idx - 1])
+        temp_f1 = 0
+        for j in range(1, FLAGS.num_corpus + 1):
+            old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                                           summary=False, print_predict_num=-1)
+            logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
+            temp_f1 += new_f
+        print("Average F1 :", temp_f1 / FLAGS.num_corpus)
+    else:
+        for shared_ckp in checkpoint_shared:
+            logger.info('use: ' + shared_ckp)
+            try:
+                shared_model_saver.restore(sess, shared_ckp)
+            except Exception as e:
+                logger.warning("can't load :" + shared_ckp)
+                temp = [0] * FLAGS.num_corpus
+            else:
+                # 测试：
+                temp = []
+                for j in range(1, FLAGS.num_corpus + 1):
+                    old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
+                                                   summary=False, print_predict_num=-1)
+                    logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
+                    temp.append(new_f)
+            shared_model_scores.append(sum(temp))
+            shared_f1s.append(temp)
+        # 选择最优：
+        best_shared_model = np.argmax(shared_model_scores)
+        shared_model_saver.restore(sess, checkpoint_shared[best_shared_model])
+        shared_best_f1 = shared_f1s[best_shared_model]
+        print("##" * 10)
+        logger.info("LoadSharedModel> Choose: " + checkpoint_shared[best_shared_model] + " ,average F1: " + str(max(
+            shared_model_scores) / FLAGS.num_corpus))
 
 
 # shared_train_best_step = [0] * FLAGS.num_corpus
@@ -378,7 +389,7 @@ with tf.Graph().as_default():
             return step
         
         
-        def final_test_step(step, df, iterator, idx, predict=False, print_predict=True, summary=False):
+        def final_test_step(step, df, iterator, idx, predict=False, print_predict_num=2, summary=False):
             """测试predict/test、验证dev"""
             
             def get_begin_end(idxs, tag):
@@ -546,14 +557,19 @@ with tf.Graph().as_default():
                 raise RuntimeError('predict模式需要新的数据迭代器，predict 模式下正确标签未知')
                 # todo：predict mode
             else:
-                if print_predict:
+                if print_predict_num != -1:
                     print("Dev  Task: ", idx)
                     print("Batch num: ", batch_num, "Sample num: ", N)
                     random.shuffle(samples)
                     # num_ = min(N // 10, 10)
-                    for (pred_one, true_one) in samples[:2]:
-                        print('right  : ', true_one)
-                        print('predict: ', pred_one)
+                    tags = Tag()
+                    for (pred_one, true_one) in samples[:print_predict_num]:
+                        print('right  : \n', true_one)
+                        print(">BE: ", get_begin_end(true_one, tags))
+                        
+                        print('predict: \n', pred_one)
+                        print(">BE: ", get_begin_end(pred_one, tags))
+                        
                         print('---' * 10)
             
             return old_F, new_F
@@ -641,11 +657,10 @@ with tf.Graph().as_default():
                                                                                       best_accuary[i] * 100))
             logger.info(">>>>>>>>>>>>>>>>Shared Train Done<<<<<<<<<<<<<<<")
         
-        Load_pkbs()
-        # raise RuntimeError('stop')
-        # 私有训练：
-        best_accuary = shared_best_f1
         if FLAGS.private_train:
+            Load_pkbs()
+            best_accuary = shared_best_f1
+            
             for i in range(FLAGS.num_epochs_private):
                 stop = True
                 for j in range(FLAGS.num_corpus):
@@ -695,7 +710,7 @@ with tf.Graph().as_default():
                                                                                        best_accuary[i] * 100))
         
         if FLAGS.show_final_result:
-            Load_pkbs()
+            Load_pkbs(FLAGS.use_one_shared_ckp)
         
         if FLAGS.predict:
             """预测模式"""
@@ -708,7 +723,7 @@ with tf.Graph().as_default():
             for i in range(FLAGS.num_corpus):
                 print('Task:{}\n'.format(i + 1))
                 # task_data[i][3]是测试数据的 dataFrame（pandas 返回），[4]是测试数据的 iterator
-                old_f, new_f = final_test_step(0, task_data[i][3], task_data[i][4], i + 1, print_predict=False)
+                old_f, new_f = final_test_step(0, task_data[i][3], task_data[i][4], i + 1, print_predict_num=-1)
                 # evaluate_word_PRF(yp, yt)
                 # get_metric_out(yp, yt)
                 # todo:将预测输出写到文件中
