@@ -392,7 +392,13 @@ with tf.Graph().as_default():
                             find_b = True
                             continue
                         if i > 0 and tag.idx2tag[idxs[i]] == 'O' and tag.idx2tag[idxs[i - 1]] == 'M' and find_b:
-                            e_l.append(i)
+                            e_l.append(i - 1)
+                            find_b = False
+                            continue
+                        if i > 0 and tag.idx2tag[idxs[i]] == 'B' and tag.idx2tag[idxs[i - 1]] == 'M' and find_b:
+                            e_l.append(i - 1)
+                            b_l.append(i)
+                            find_b = True
                             continue
                         if i == len(idxs) - 1 and tag.idx2tag[idxs[i]] == 'M' and find_b:
                             e_l.append(i)
