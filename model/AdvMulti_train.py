@@ -64,6 +64,7 @@ parser.add_argument('--private_early_stop_step', default=200, type=int)
 parser.add_argument('--allow_soft_placement', default=True, type=bool)
 parser.add_argument('--log_device_placement', default=False, type=bool)
 parser.add_argument('--gpu_growth', default=False, type=bool)
+parser.add_argument('--per_process_gpu_memory_fraction', default=0.4, type=float)
 
 # checkpoint
 parser.add_argument('--use_given_ckp', default=False, type=bool)
@@ -216,8 +217,10 @@ with tf.Graph().as_default():
         allow_soft_placement=FLAGS.allow_soft_placement,
         log_device_placement=FLAGS.log_device_placement
     )
-    
-    session_conf.gpu_options.allow_growth = FLAGS.gpu_growth
+    if FLAGS.per_process_gpu_memory_fraction > 1.0 or FLAGS.per_process_gpu_memory_fraction < 0:
+        session_conf.gpu_options.allow_growth = FLAGS.gpu_growth
+    else:
+        session_conf.gpu_options.per_process_gpu_memory_fraction = FLAGS.per_process_gpu_memory_fraction  # 根据自己的需求确定
     
     sess = tf.Session(config=session_conf)
     with sess.as_default():
