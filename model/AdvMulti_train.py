@@ -552,10 +552,10 @@ with tf.Graph().as_default():
                     tags = Tag()
                     for (pred_one, true_one) in samples[:print_predict_num]:
                         print('right  : \n', true_one)
-                        print(">BE: ", get_begin_end(true_one, tags))
+                        print(">BE: ", get_begin_end(true_one, tags, FLAGS))
                         
                         print('predict: \n', pred_one)
-                        print(">BE: ", get_begin_end(pred_one, tags))
+                        print(">BE: ", get_begin_end(pred_one, tags, FLAGS))
                         
                         print('---' * 10)
             
