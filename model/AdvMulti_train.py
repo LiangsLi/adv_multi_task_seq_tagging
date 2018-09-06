@@ -15,6 +15,8 @@ from voc import Vocab, Tag
 from config import MODEL_TYPE, ADV_STATUS
 
 from AdvMulti_model import MultiModel
+from utils import get_begin_end, get_match_size
+
 import data_helpers
 
 # ==================================================
@@ -164,11 +166,12 @@ def Load_pkbs(use_shared_ckp_idx=-1):
     shared_f1s = []
     if use_shared_ckp_idx != -1:
         assert (isinstance(use_shared_ckp_idx, int) and use_shared_ckp_idx <= FLAGS.num_corpus), "bad use one ckp"
+        logger.info("USE given shared ckp,Task idx: ", FLAGS.use_shared_ckp_idx)
         shared_model_saver.restore(sess, checkpoint_shared[use_shared_ckp_idx - 1])
         temp_f1 = 0
         for j in range(1, FLAGS.num_corpus + 1):
             old_f, new_f = final_test_step(0, task_data[j - 1][1], task_data[j - 1][2], j,
-                                           summary=False, print_predict_num=-1)
+                                           summary=False, print_predict_num=10)
             logger.info(">LoadSharedMode--Task {}, F1 {:.2f}".format(j, new_f * 100))
             temp_f1 += new_f
         print("Average F1 :", temp_f1 / FLAGS.num_corpus)
@@ -240,6 +243,7 @@ with tf.Graph().as_default():
         # except:
         #     pass
         if FLAGS.use_given_ckp:
+            logger.info("USE given ckps:", FLAGS.pre_trained_ckp)
             checkpoint_dir = FLAGS.pre_trained_ckp
         else:
             out_dir = os.path.abspath(os.path.join(os.path.pardir, "checkpoints", model_name))
@@ -392,62 +396,6 @@ with tf.Graph().as_default():
         def final_test_step(step, df, iterator, idx, predict=False, print_predict_num=2, summary=False):
             """测试predict/test、验证dev"""
             
-            def get_begin_end(idxs, tag):
-                if FLAGS.num_classes == 4:
-                    b_l = []
-                    e_l = []
-                    find_b = False
-                    for i in range(len(idxs)):
-                        if not find_b and tag.idx2tag[idxs[i]] == 'M':
-                            b_l.append(i)
-                            find_b = True
-                            continue
-                        if i > 0 and tag.idx2tag[idxs[i]] == 'O' and tag.idx2tag[idxs[i - 1]] == 'M' and find_b:
-                            e_l.append(i - 1)
-                            find_b = False
-                            continue
-                        if i > 0 and tag.idx2tag[idxs[i]] == 'B' and tag.idx2tag[idxs[i - 1]] == 'M' and find_b:
-                            e_l.append(i - 1)
-                            b_l.append(i)
-                            find_b = True
-                            continue
-                        if i == len(idxs) - 1 and tag.idx2tag[idxs[i]] == 'M' and find_b:
-                            e_l.append(i)
-                            continue
-                        if tag.idx2tag[idxs[i]] == 'B':
-                            b_l.append(i)
-                            find_b = True
-                            continue
-                        if tag.idx2tag[idxs[i]] == 'E':
-                            e_l.append(i)
-                            continue
-                        if tag.idx2tag[idxs[i]] == 'O':
-                            find_b = False
-                    
-                    if len(b_l) != len(e_l):
-                        min_length = min(len(b_l), len(e_l))
-                        b_l = b_l[:min_length]
-                        e_l = e_l[:min_length]
-                    result = []
-                    for a, b in zip(b_l, e_l):
-                        if a <= b:
-                            result.append((a, b))
-                    return result
-            
-            def get_match_size(pred_one, real_one):
-                if (real_one[0], real_one[1]) == (-1, -1) or (pred_one[0], pred_one[1]) == (-1, -1):
-                    return 0
-                if pred_one[0] <= real_one[0]:
-                    b1, e1 = pred_one
-                    b2, e2 = real_one
-                else:
-                    b1, e1 = real_one
-                    b2, e2 = pred_one
-                match_size = min(e1, e2) - b2 + 1
-                if match_size < 0:
-                    match_size = 0
-                return match_size
-            
             def get_metric_out(data, test=False, print_metric=True):
                 # y: I:0 O:1
                 # cor_num = 0
@@ -479,10 +427,40 @@ with tf.Graph().as_default():
                                               # (TP + FP) 预测数据的知识点总数 pred_data_num
                     f = 2 * p * r / (p + r)
                     """
-                    pred_result = get_begin_end(y_pred, Tags)
-                    real_result = get_begin_end(y, Tags)
+                    pred_result = get_begin_end(y_pred, Tags, FLAGS)
+                    real_result = get_begin_end(y, Tags, FLAGS)
                     pred_data_num += len(pred_result)
                     real_data_num += len(real_result)
+                    
+                    i_ = 0
+                    while i_ < len(real_result):
+                        j_ = 0
+                        is_match = False
+                        while j_ < len(pred_result):
+                            is_match = False
+                            real_begin, real_end = real_result[i_]
+                            pred_begin, pred_end = pred_result[j_]
+                            match_size = get_match_size((pred_begin, pred_end), (real_begin, real_end))
+                            try:
+                                retio = match_size / (pred_end - pred_begin + real_end - real_begin + 2 - match_size)
+                            except ZeroDivisionError as e:
+                                logger.warning("Warning: " + str(e))
+                                logger.warning(
+                                    "pb:{},pe:{},rb:{},re:{},ms:{}".format(pred_begin, pred_end, real_begin, real_end,
+                                                                           match_size))
+                                raise RuntimeError("stop:ZeroDivisionError")
+                            if retio > 0.8:
+                                pred_right_num += 1
+                                is_match = True
+                                del pred_result[j_]
+                                break
+                            else:
+                                j_ += 1
+                        if is_match:
+                            del real_result[i_]
+                        else:
+                            i_ += 1
+                    
                     if len(real_result) != len(pred_result):
                         min_len = min(len(real_result), len(pred_result))
                         real_result = real_result[:min_len]
@@ -586,7 +564,7 @@ with tf.Graph().as_default():
         private_stop_flag = [False] * FLAGS.num_corpus
         all_stop_flag = [False] * FLAGS.num_corpus
         if FLAGS.train:
-            logger.info('-------------train starts:{}--------------'.format(time_stamp))
+            logger.info('-------------Shared train starts:{}--------------'.format(time_stamp))
             for i in range(FLAGS.num_epochs):
                 # 逐个语料训练
                 # 每一个 epoch 只运行不同语料的一个 batch
@@ -660,7 +638,7 @@ with tf.Graph().as_default():
         if FLAGS.private_train:
             Load_pkbs()
             best_accuary = shared_best_f1
-            
+            logger.info('-------------Private train starts:{}--------------'.format(time_stamp))
             for i in range(FLAGS.num_epochs_private):
                 stop = True
                 for j in range(FLAGS.num_corpus):
@@ -710,6 +688,7 @@ with tf.Graph().as_default():
                                                                                        best_accuary[i] * 100))
         
         if FLAGS.show_final_result:
+            logger.info('-------------Just show final result:{}--------------'.format(time_stamp))
             Load_pkbs(FLAGS.use_one_shared_ckp)
         
         if FLAGS.predict:
