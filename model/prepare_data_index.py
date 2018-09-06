@@ -163,7 +163,7 @@ class Data_index(object):
 
 if __name__ == '__main__':
     VOCABS = Vocab('/Users/liangs/Codes/insurance_data/insurance_wordvec.wv',
-                   '../data/20_data_v2/vocab.txt',
+                   '../data/20_data_v3/vocab.txt',
                    single_task=False,
                    bi_gram=True,
                    frequency=0)
@@ -171,5 +171,5 @@ if __name__ == '__main__':
     init_embedding = VOCABS.word_vectors  # word/char embedding
     da_idx = Data_index(VOCABS, TAGS)  #
     for i in range(1, 21):
-        path = "../data/20_data_v2/" + str(i)
+        path = "../data/20_data_v3/" + str(i)
         da_idx.process_all_data(path, path, True, multitask=False)
