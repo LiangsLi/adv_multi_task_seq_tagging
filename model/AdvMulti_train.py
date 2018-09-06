@@ -43,7 +43,7 @@ parser.add_argument('--private_train', default=True, type=bool)
 
 # Model Hyperparameters[t]
 parser.add_argument('--lr', default=0.01, type=float)
-parser.add_argument('--l2_reg_lambda', default=0.000, type=float)
+parser.add_argument('--l2_reg_lambda', default=0.001, type=float)
 parser.add_argument('--adv_weight', default=0.06, type=float)
 parser.add_argument('--clip', default=5, type=int)
 
@@ -63,7 +63,7 @@ parser.add_argument('--private_early_stop_step', default=200, type=int)
 # Misc Parameters
 parser.add_argument('--allow_soft_placement', default=True, type=bool)
 parser.add_argument('--log_device_placement', default=False, type=bool)
-parser.add_argument('--gpu_growth', default=True, type=bool)
+parser.add_argument('--gpu_growth', default=False, type=bool)
 
 # checkpoint
 parser.add_argument('--use_given_ckp', default=False, type=bool)
@@ -134,8 +134,14 @@ for i in range(1, FLAGS.num_corpus + 1):
     TRAIN_FILE.append('../data/20_data_v2/' + str(i) + '/train.csv')
     DEV_FILE.append('../data/20_data_v2/' + str(i) + "/dev.csv")
     TEST_FILE.append('')
-    DROP_OUT.append(0.80)
-    BUCKETS_NUM.append(max(5, 8 - i // 3))
+    if i in [2, 3, 7, 19]:
+        DROP_OUT.append(0.7)
+    elif i in [6, 8, 14, 17]:
+        DROP_OUT.append(0.6)
+    else:
+        DROP_OUT.append(0.80)
+    # BUCKETS_NUM.append(max(5, 8 - i // 3))
+    BUCKETS_NUM.append(1)
 
 print("Loading data...")
 # 加载数据。保存到对应列表
