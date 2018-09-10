@@ -38,7 +38,7 @@ parser.add_argument('--embedding_trainable', default=True, type=bool)
 
 # predict ? train ?
 parser.add_argument('--predict', default=False, type=bool)
-parser.add_argument('--train', default=True, type=bool)
+parser.add_argument('--train', default=False, type=bool)
 parser.add_argument('--private_train', default=True, type=bool)
 
 # Model Hyperparameters[t]
@@ -171,6 +171,7 @@ def Load_pkbs(use_shared_ckp_idx=-1):
         task_private_saver[j - 1].restore(sess, checkpoint_private[j - 1])
     shared_model_scores = []
     shared_f1s = []
+    sess.run(tf.global_variables_initializer())
     if use_shared_ckp_idx != -1:
         assert (isinstance(use_shared_ckp_idx, int) and use_shared_ckp_idx <= FLAGS.num_corpus), "bad use one ckp"
         logger.info("USE given shared ckp,Task idx: ", FLAGS.use_shared_ckp_idx)
@@ -681,7 +682,7 @@ with tf.Graph().as_default():
                                         ">>>>>>Saved private mode to {}".format(private_save_path))
                                 
                                 elif current_step - best_step_private[j - 1] > FLAGS.private_early_stop_step:
-                                    # 超过2000步都没有取得更好的结果
+                                    # 超过200步都没有取得更好的结果
                                     logger.info(
                                         "Private train : Task {} early stop in step:{}".format(j, current_step))
                                     private_stop_flag[j - 1] = True

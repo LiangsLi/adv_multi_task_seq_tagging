@@ -15,7 +15,7 @@ class BucketedDataIterator(object):
         df_sort = df.sort_values('length').reset_index(drop=True)
         # 每个桶的数据数量：
         self.size = self.total // num_buckets
-        print("->bucket size: ", self.size)
+        # print("->bucket size: ", self.size)
         self.dfs = []
         for bucket in range(num_buckets - 1):
             # 将数据划分为一个一个桶，保存在 self.dfs 列表中

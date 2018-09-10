@@ -569,7 +569,7 @@ if __name__ == '__main__':
         sess = tf.Session(config=session_conf)
         with sess.as_default():
             # build model
-            model = MultiModel()
+            model = MultiModel(num_corpus=20,embedding_trainable=True)
             for v in tf.trainable_variables():
                 print("trainable_var:", v)
             print('--' * 10)
