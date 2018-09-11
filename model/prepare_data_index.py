@@ -171,6 +171,6 @@ if __name__ == '__main__':
     init_embedding = VOCABS.word_vectors  # word/char embedding
     da_idx = Data_index(VOCABS, TAGS)  #
     # for i in range(1, 21):
-    for i in [100, 150, 200, 250, 300]:
-        path = "../data/transform/" + str(i)
+    for i in [20, 40, 60, 80, 100, 200, 300, 400, 500]:
+        path = "../youyuqi/" + str(i)
         da_idx.process_all_data(path, path, True, multitask=False)

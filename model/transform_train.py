@@ -132,8 +132,11 @@ TEST_FILE = []
 DROP_OUT = []
 BUCKETS_NUM = []
 for i in range(1, FLAGS.num_corpus + 1):
-    TRAIN_FILE.append('../data/transform/100/20_data_v3/' + str(i) + '/train.csv')
-    DEV_FILE.append('../data/transform/100/20_data_v3/' + str(i) + "/dev.csv")
+    # TRAIN_FILE.append('../data/transform/100/20_data_v3/' + str(i) + '/train.csv')
+    # DEV_FILE.append('../data/transform/100/20_data_v3/' + str(i) + "/dev.csv")
+    TRAIN_FILE.append('../youyuqi/20' + '/train.csv')
+    DEV_FILE.append('../youyuqi/20' + "/dev.csv")
+
     TEST_FILE.append('')
     if i in [2, 3, 7, 19]:
         DROP_OUT.append(0.7)
