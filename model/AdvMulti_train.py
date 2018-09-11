@@ -63,8 +63,8 @@ parser.add_argument('--private_early_stop_step', default=200, type=int)
 # Misc Parameters
 parser.add_argument('--allow_soft_placement', default=True, type=bool)
 parser.add_argument('--log_device_placement', default=False, type=bool)
-parser.add_argument('--gpu_growth', default=False, type=bool)
-parser.add_argument('--per_process_gpu_memory_fraction', default=0.4, type=float)
+parser.add_argument('--gpu_growth', default=True, type=bool)
+parser.add_argument('--per_process_gpu_memory_fraction', default=-1, type=float)
 
 # checkpoint
 parser.add_argument('--use_given_ckp', default=False, type=bool)
