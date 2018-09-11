@@ -3,4 +3,5 @@ checkpoints/
 summaries/
 model/AdvMulti_train.log
 log/
+*.pyc
 
