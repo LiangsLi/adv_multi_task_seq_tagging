@@ -135,8 +135,8 @@ for i in range(1, FLAGS.num_corpus + 1):
     # TRAIN_FILE.append('../data/20_data_v3/' + str(i) + '/train.csv')
     # DEV_FILE.append('../data/20_data_v3/' + str(i) + "/dev.csv")
     # TEST_FILE.append('')
-    TRAIN_FILE.append('../data/transform/100/20_data_v3/' + str(21) + '/train.csv')
-    DEV_FILE.append('../data/transform/100/20_data_v3/' + str(21) + "/dev.csv")
+    TRAIN_FILE.append('../youyiqi/20' + '/train.csv')
+    DEV_FILE.append('../youyuqi/20' + "/dev.csv")
     TEST_FILE.append('')
     if i in [2, 3, 7, 19]:
         DROP_OUT.append(0.7)
