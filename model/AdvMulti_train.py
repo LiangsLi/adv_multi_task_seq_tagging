@@ -22,7 +22,7 @@ import data_helpers
 # ==================================================
 #  numpy 数组形式的单字、单词向量
 # 单字向量使用预训练向量，单词向量是字向量的简单组合
-init_embedding = Vocab('../data/insurance_wordvec.wv', '../data/20_data_v1/vocab.txt', single_task=False,
+init_embedding = Vocab('../data/insurance_wordvec.wv', '../data/transform/vocab.txt', single_task=False,
                        bi_gram=True).word_vectors
 parser = argparse.ArgumentParser()
 parser.add_argument('--vocab_size', default=init_embedding.shape[0], type=int)
@@ -132,8 +132,11 @@ TEST_FILE = []
 DROP_OUT = []
 BUCKETS_NUM = []
 for i in range(1, FLAGS.num_corpus + 1):
-    TRAIN_FILE.append('../data/20_data_v3/' + str(i) + '/train.csv')
-    DEV_FILE.append('../data/20_data_v3/' + str(i) + "/dev.csv")
+    # TRAIN_FILE.append('../data/20_data_v3/' + str(i) + '/train.csv')
+    # DEV_FILE.append('../data/20_data_v3/' + str(i) + "/dev.csv")
+    # TEST_FILE.append('')
+    TRAIN_FILE.append('../data/transform/100/20_data_v3/' + str(21) + '/train.csv')
+    DEV_FILE.append('../data/transform/100/20_data_v3/' + str(21) + "/dev.csv")
     TEST_FILE.append('')
     if i in [2, 3, 7, 19]:
         DROP_OUT.append(0.7)
