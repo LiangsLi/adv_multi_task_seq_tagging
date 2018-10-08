@@ -19,7 +19,7 @@ import math
 
 
 class MultiModel(object):
-    
+
     def __init__(self, batch_size=128, vocab_size=5620,
                  word_dim=100, lstm_dim=100, num_classes=4,
                  num_corpus=1,
@@ -32,11 +32,11 @@ class MultiModel(object):
                  adv=True,
                  reuseshare=True,
                  sep=True, embedding_trainable=False):
-        
+
         def get_LSTM_cell(size):
-            
+
             return tf.nn.rnn_cell.BasicLSTMCell(size)
-        
+
         def _shared_layer(input_data, seq_len):
             """定义共享的双向 LSTM 层"""
             # print(lstm_fw_cell.W.shape)
@@ -52,9 +52,9 @@ class MultiModel(object):
                 sequence_length=seq_len,
             )
             output = tf.concat(axis=2, values=[forward_output, backward_output])
-            
+
             return output
-        
+
         def _private_layer(output_pub, input_data, seq_len, y):
             """
             
@@ -69,7 +69,7 @@ class MultiModel(object):
             if sep is False:
                 raise RuntimeError('seq')
                 # sep: If True, the output of the shared layer will not be used as part of the input of private layer
-                
+
                 # if self.gateus:
                 #     raise RuntimeError('gateus')
                 #     # gates: If True, gate is added between shared layer and private layer.
@@ -86,12 +86,12 @@ class MultiModel(object):
                 #     output_prep = tf.nn.sigmoid(tf.reshape(output_pub, [-1, target_dim]))
                 #     output_pub = tf.multiply(output_prep, gate)
                 #     output_pub = tf.reshape(output_pub, [size, -1, target_dim])
-                
+
                 # combined_input_data = tf.concat(axis=2, values=[input_data, output_pub])
                 # combined_input_data = tf.reshape(combined_input_data, [size, -1, self.lstm_dim * 2 + self.word_dim * 9])
             else:
                 combined_input_data = input_data
-            
+
             (forward_output, backward_output), _ = tf.nn.bidirectional_dynamic_rnn(
                 # lstm_fw_cell,
                 # lstm_bw_cell,
@@ -103,7 +103,7 @@ class MultiModel(object):
             )
             output = tf.concat(axis=2, values=[forward_output, backward_output])
             # output:原始输入的 embedding 经过私有 LSTM 之后
-            
+
             if self.reuse is False:
                 raise RuntimeError('reuse')
                 # output = tf.reshape(output, [-1, self.lstm_dim * 2])
@@ -122,22 +122,22 @@ class MultiModel(object):
                     initializer=tf.truncated_normal_initializer(stddev=0.01),
                     name="weights",
                     regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg_lambda))
-            
+
             b = tf.Variable(tf.zeros([num_classes], name="bias"))
             #  投射层：
             matricized_unary_scores = tf.matmul(output, W) + b
             unary_scores = tf.reshape(
                 matricized_unary_scores,
                 [size, -1, self.num_classes])
-            
+
             log_likelihood, transition_params = tf.contrib.crf.crf_log_likelihood(
                 unary_scores, y, self.seq_len)
-            
+
             if self.gateus:
                 return unary_scores, log_likelihood, transition_params, gate
             else:
                 return unary_scores, log_likelihood, transition_params
-        
+
         # domain layer
         def _domain_layer(output_pub, seq_len):  # output_pub batch_size * seq_len * (2 * lstm_dim)
             """定义对抗判别器"""
@@ -150,38 +150,53 @@ class MultiModel(object):
                          name="class_bias"))
             output_avg = reduce_avg(output_pub, seq_len, 1)  # output_avg batch_size * (2 * lstm_dim)
             logits = tf.matmul(output_avg, W_classifier) + bias  # logits batch_size * num_corpus
+            # 等同于 logits=tf.layers.dense(output_avg,num_corpus,...)
             return logits
-        
+
         def _Hloss(logits):
+            # 负熵loss:实际就是在计算分类器结果的熵，把熵作为loss（这里多乘了一个负号）
+            # 熵的公式： H(x)= -sum( p(x)*log(p(x)) ) ,熵越大，不确定性越大
+            # tf.softmax(logits)就是p(x),tf.log_softmax(logits)就是log(p(x))
+            # tf.multiply(soft,log_soft)就是 p(x)*log[p(x)]
             log_soft = tf.nn.log_softmax(logits)  # batch_size * num_corpus
             soft = tf.nn.softmax(logits)
-            H_mid = tf.reduce_mean(tf.multiply(soft, log_soft), axis=0)  # [num_corpus]
+            # tf.multiply等同与 × （星号乘法），逐元素相乘
+            H_mid = tf.reduce_mean(tf.multiply(soft, log_soft), axis=1)  # [num_corpus]
             H_loss = tf.reduce_sum(H_mid)
             return H_loss
-        
+
         def _Dloss(logits, y_class):
-            labels = tf.to_int64(y_class)
+            # 交叉熵loss：实际就是在计算分类器结果与真实结果的交叉熵
+            labels = tf.to_int64(y_class)   #labels的类型必须为int32后者int64
+            # tf中计算交叉熵的api：tf.nn.sparse_softmax_cross_entropy_with_logits
+            # 这个api是tf.nn.softmax_cross_entropy_with_logits的易用版本，
+            # 这个版本的logits的形状依然是[batch_size, num_classes]，但是labels的形状是[batch_size]，
+            # 每个label的取值是从[0, num_classes)的离散值，这也更加符合我们的使用习惯，是哪一类就标哪个类对应的label。
+            # 如果已经对label进行了one hot编码，则可以直接使用tf.nn.softmax_cross_entropy_with_logits
+            # 返回交叉熵，与labels同shape，与logits同type
             cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=logits, labels=labels, name='xentropy')
             D_loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
             return D_loss
-        
+
         def _loss(log_likelihood):
             """计算单个 CRF 的损失"""
+            # 每一个log likelihood 是一个shape 为 [batch_size] 的tensor
             loss = tf.reduce_mean(-log_likelihood)
             return loss
-        
+
         def _training(loss):
-            """训练，对整个计算图中的所有（和 loss 相关的）变量都更新梯度"""
+            """训练，对整个计算图中的所有（和 loss 相关的）变量
+            都更新梯度"""
             optimizer = tf.train.AdamOptimizer(self.lr)
             global_step = tf.Variable(0, name="global_step", trainable=False)
             tvars = tf.trainable_variables()
             grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), self.clip)
             train_op = optimizer.apply_gradients(zip(grads, tvars),
                                                  global_step=global_step)
-            
+
             return train_op, global_step
-        
+
         def _trainingPrivate(loss, taskid):
             """训练，仅仅对计算图中 task ID scope 下的（和 loss 相关的）变量更新梯度"""
             optimizer = tf.train.AdamOptimizer(self.lr)
@@ -190,9 +205,9 @@ class MultiModel(object):
             grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), self.clip)
             train_op = optimizer.apply_gradients(zip(grads, tvars),
                                                  global_step=global_step)
-            
+
             return train_op, global_step
-        
+
         def _trainingDomain(loss):
             """训练，仅仅对 domain scope （和 loss 相关的）变量更新梯度"""
             optimizer = tf.train.AdamOptimizer(self.lr)
@@ -201,9 +216,9 @@ class MultiModel(object):
             grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), self.clip)
             train_op = optimizer.apply_gradients(zip(grads, tvars),
                                                  global_step=global_step)
-            
+
             return train_op, global_step
-        
+
         def _trainingShared(loss, taskid):
             """训练，对除了 domain scope 下的（和 loss 相关的）变量更新梯度"""
             optimizer = tf.train.AdamOptimizer(self.lr)
@@ -216,9 +231,9 @@ class MultiModel(object):
             grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), self.clip)
             train_op = optimizer.apply_gradients(zip(grads, tvars),
                                                  global_step=global_step)
-            
+
             return train_op, global_step
-        
+
         # ####################################################
         """构建计算图"""
         self.batch_size = batch_size
@@ -233,14 +248,14 @@ class MultiModel(object):
         self.gateus = gates
         self.adv = adv
         self.reuse = reuseshare
-        
+
         # placeholders
         self.x = tf.placeholder(tf.int32, [None, None])
         self.y = tf.placeholder(tf.int32, [None, None])
         self.y_class = tf.placeholder(tf.int32, [None])  # 用于对抗的判别器的训练
         self.seq_len = tf.placeholder(tf.int32, [None])
         self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
-        
+
         if init_embedding is None:
             self.init_embedding = np.zeros([vocab_size, word_dim], dtype=np.float32)
         else:
@@ -261,11 +276,11 @@ class MultiModel(object):
         x = tf.nn.dropout(x, self.dropout_keep_prob)
         # print(x.shape)
         # task1:msr 2:as 3 pku 4 ctb 5 ckip 6 cityu 7 ncc 8 sxu 9 weibo
-        
+
         # 在 shared scope 下 执行共享 LSTM
         with tf.variable_scope("shared"):
             output_pub = _shared_layer(x, seq_len)
-        
+
         # add adverisal op
         if self.adv:
             # 在 domain scope 下 定义全连接分类器
@@ -273,7 +288,7 @@ class MultiModel(object):
                 logits = _domain_layer(output_pub, seq_len)
             self.H_loss = _Hloss(logits)
             self.D_loss = _Dloss(logits, self.y_class)
-        
+
         self.scores = []
         self.transition = []
         self.gate = []
@@ -289,7 +304,7 @@ class MultiModel(object):
                 self.transition.append(condition[2])
                 if self.gateus:
                     self.gate.append(condition[3])
-        
+
         # loss_com is combination loss(cws + hess), losses is basic loss(cws)
         self.losses = [_loss(o) for o in loglike]
         if self.adv:
@@ -304,7 +319,7 @@ class MultiModel(object):
             res = _training(self.losses[i - 1])
             self.task_basic_op.append(res[0])
             self.global_basic_step.append(res[1])
-        
+
         # task_op is for combination train(cws_loss + hess_loss * adv_weight)
         if self.adv:
             self.task_op = []
@@ -314,7 +329,7 @@ class MultiModel(object):
                 res = _trainingShared(self.loss_com[i - 1], taskid=Taskid)
                 self.task_op.append(res[0])
                 self.global_step.append(res[1])
-        
+
         # task_op_ss is for private train
         self.task_op_ss = []
         self.global_pristep = []
@@ -323,14 +338,14 @@ class MultiModel(object):
             res = _trainingPrivate(self.losses[i - 1], Taskid)
             self.task_op_ss.append(res[0])
             self.global_pristep.append(res[1])
-        
+
         # self.all_loss_summaries = []
         # for task_id, loss_ in enumerate(self.losses):
         #     with tf.name_scope('loss_task' + str(task_id + 1)):
         #         tf_loss_summary = tf.summary.scalar('loss', loss_)
         #         self.all_loss_summaries.append(tf_loss_summary)
         # self.tf_loss_summaries = tf.summary.merge(all_loss_summaries)
-        
+
         self.tf_loss_ph = tf.placeholder(tf.float32, shape=None, name='loss_summary')
         self.tf_metric_ph = tf.placeholder(tf.float32, shape=None, name='metric_summary')
         self.real_losses_summ = []
@@ -345,7 +360,7 @@ class MultiModel(object):
                 # self.R_value.append(tf_R_summary)
                 # self.F1_value.append(tf_F1_summary)
                 self.metric_summaries.append(tf_metric_summary)
-    
+
     # train all the basic model cwsloss, all parameters
     def train_step_basic(self, sess, x_batch, y_batch, seq_len_batch, dropout_keep_prob, task_op, global_step, loss,
                          id):
@@ -359,13 +374,13 @@ class MultiModel(object):
         _, step, loss = sess.run(
             [task_op, global_step, loss],
             feed_dict)
-        
+
         feed_dict2 = {
             self.tf_loss_ph: loss
         }
         loss_summ = sess.run(self.real_losses_summ[id - 1], feed_dict2)
         return step, loss, loss_summ
-    
+
     # train all the cwsloss + hesloss VS advloss, main_line parameters Or cwsloss VS advloss(depends on taskop_type)
     def train_step_task(self, sess, x_batch, y_batch, seq_len_batch, y_class_batch, dropout_keep_prob, task_op,
                         global_step, loss, domain_op, global_step_domain, Dloss, Hloss):
@@ -381,7 +396,7 @@ class MultiModel(object):
             [task_op, global_step, loss, domain_op, global_step_domain, Dloss, Hloss],
             feed_dict)
         return step_norm, loss_norm, loss_adv, loss_hess
-    
+
     # train only the private params, cwsloss
     def train_step_pritask(self, sess, x_batch, y_batch, seq_len_batch, dropout_keep_prob, task_op, global_step, loss,
                            id):
@@ -395,14 +410,14 @@ class MultiModel(object):
         _, step, loss = sess.run(
             [task_op, global_step, loss],
             feed_dict)
-        
+
         feed_dict2 = {
             self.tf_loss_ph: loss
         }
         loss_summ = sess.run(self.real_losses_summ[id - 1], feed_dict2)
-        
+
         return step, loss, loss_summ
-    
+
     def get_metric_summary(self, sess, metric_value, idx):
         feed_dict = {
             self.tf_metric_ph: metric_value,
@@ -410,7 +425,7 @@ class MultiModel(object):
         metric_summ = sess.run(self.metric_summaries[idx - 1],
                                feed_dict)
         return metric_summ
-    
+
     # predict all for tasks
     def fast_all_predict(self, sess, N, batch_iterator, scores, transition_param, loss_op, idx, summary=False):
         """
@@ -430,7 +445,7 @@ class MultiModel(object):
         for i in range(num_batches):
             # 多个 batch，逐个batch 处理：
             x_batch, y_batch, seq_len_batch = batch_iterator.next_all_batch(self.batch_size)
-            
+
             # infer predictions
             if summary:
                 feed_dict = {
@@ -438,7 +453,7 @@ class MultiModel(object):
                     self.y: y_batch,
                     self.seq_len: seq_len_batch,
                     self.dropout_keep_prob: 1.0
-                    
+
                 }
                 unary_scores, transition_params, loss = sess.run(
                     [scores, transition_param, loss_op], feed_dict)
@@ -450,20 +465,20 @@ class MultiModel(object):
                     self.seq_len: seq_len_batch,
                     self.dropout_keep_prob: 1.0
                 }
-                
+
                 unary_scores, transition_params = sess.run(
                     [scores, transition_param], feed_dict)
-            
+
             for unary_scores_, y_, seq_len_ in zip(unary_scores, y_batch, seq_len_batch):
                 # 拆开 batch，逐个样本计算：
-                
+
                 # remove padding
                 unary_scores_ = unary_scores_[:seq_len_]
-                
+
                 # Compute the highest scoring sequence.
                 viterbi_sequence, _ = tf.contrib.crf.viterbi_decode(
                     unary_scores_, transition_params)
-                
+
                 # y_pred += viterbi_sequence
                 # y_true += y_[:seq_len_].tolist()
                 samples.append((viterbi_sequence, y_[:seq_len_].tolist()))
@@ -482,30 +497,30 @@ class MultiModel(object):
         else:
             loss_summ = None
         return samples, num_batches, loss_summ
-    
+
     # predict one by one for tasks
     def predict(self, sess, N, one_iterator, scores, transition_param):
         # y_pred, y_true = [], []
         samples = []
         for i in range(N):
             x_one, y_one, len_one = one_iterator.next_pred_one()
-            
+
             feed_dict = {
                 self.x: x_one,
                 # self.y: y_one,    # 此时不需要正确标签
                 self.seq_len: len_one,
                 self.dropout_keep_prob: 1.0
             }
-            
+
             unary_scores, transition_params = sess.run(
                 [scores, transition_param], feed_dict)
-            
+
             unary_scores_ = unary_scores[0]
             y_one_ = y_one[0]
-            
+
             viterbi_sequence, _ = tf.contrib.crf.viterbi_decode(
                 unary_scores_, transition_params)
-            
+
             # y_pred += viterbi_sequence
             # y_true += y_one_[:len_one[0]].tolist()
             samples.append((viterbi_sequence, y_one_[:len_one[0]].tolist()))
@@ -513,33 +528,50 @@ class MultiModel(object):
 
 
 def mkMask(input_tensor, maxLen):
+    """
+    如果input_tensor（也就是seq_lens）为 [3,4,2,1] ,maxlen为 6 ，则返回的是一个二维布尔数组，：
+    [
+        [T,T,T,F,F,F]
+        [T,T,T,T,F,F]
+        [T,T,F,F,F,F]
+        [T,F,F,F,F,F]
+    ]
+    :param input_tensor:
+    :param maxLen:
+    :return:
+    """
+    # 不同与input_tensor.shape,tf.shape(input_tensor)返回的是shape的tensor！！
     shape_of_input = tf.shape(input_tensor)
-    shape_of_output = tf.concat(axis=0, values=[shape_of_input, [maxLen]])
-    
-    oneDtensor = tf.reshape(input_tensor, shape=(-1,))
+    shape_of_output = tf.concat(axis=0, values=[shape_of_input, [maxLen]])  # 类似列表append
+
+    oneDtensor = tf.reshape(input_tensor, shape=(-1,)) # 好像没有必要 reshape？
     flat_mask = tf.sequence_mask(oneDtensor, maxlen=maxLen)
-    return tf.reshape(flat_mask, shape_of_output)
+    return tf.reshape(flat_mask, shape_of_output)   # 好像没有必要 reshape？
 
 
 def reduce_avg(reduce_target, lengths, dim):
-    """
+    """目的是将LSTM的多个h输出向量合并为一个句子级别的向量
+    [batch_size,max_time,output_dim] ==>  [batch_size,new_tensor_dim]
     Args:
         reduce_target : shape(d_0, d_1,..,d_dim, .., d_k)
         lengths : shape(d0, .., d_(dim-1))
         dim : which dimension to average, should be a python number
     """
+    #lengths.get_shape() 等同于 lengths.shape
     shape_of_lengths = lengths.get_shape()
     shape_of_target = reduce_target.get_shape()
     if len(shape_of_lengths) != dim:
+        # lengths 应当是一个一维数组，eg: [4,7,9,...]
         raise ValueError(('Second input tensor should be rank %d, ' +
                           'while it got rank %d') % (dim, len(shape_of_lengths)))
     if len(shape_of_target) < dim + 1:
+        # LSTM的输出维度至少应当比dim大1
         raise ValueError(('First input tensor should be at least rank %d, ' +
                           'while it got rank %d') % (dim + 1, len(shape_of_target)))
-    
+
     rank_diff = len(shape_of_target) - len(shape_of_lengths) - 1
-    mxlen = tf.shape(reduce_target)[dim]
-    mask = mkMask(lengths, mxlen)
+    mxlen = tf.shape(reduce_target)[dim]    #padding的max_time
+    mask = mkMask(lengths, mxlen)   # 返回的是一个二维布尔数组
     if rank_diff != 0:
         len_shape = tf.concat(axis=0, values=[tf.shape(lengths), [1] * rank_diff])
         mask_shape = tf.concat(axis=0, values=[tf.shape(mask), [1] * rank_diff])
@@ -547,13 +579,14 @@ def reduce_avg(reduce_target, lengths, dim):
         len_shape = tf.shape(lengths)
         mask_shape = tf.shape(mask)
     lengths_reshape = tf.reshape(lengths, shape=len_shape)
-    mask = tf.reshape(mask, shape=mask_shape)
-    
+    mask = tf.reshape(mask, shape=mask_shape) #这一步很关键，将mask reshape成和reduce_target同样shape的tensor
+    # 将二维布尔数组中为0的元素设为0
     mask_target = reduce_target * tf.cast(mask, dtype=reduce_target.dtype)
-    
-    red_sum = tf.reduce_sum(mask_target, axis=[dim], keep_dims=False)
+    # 注意下面不是简单的reduce_mean，而是先求和，然后除以 实际长度
+    red_sum = tf.reduce_sum(mask_target, axis=[dim], keepdims=False)  #keepdims: If true, retains reduced dimensions with length 1.
     red_avg = red_sum / (tf.to_float(lengths_reshape) + 1e-30)
     # red_avg = red_sum / lengths_reshape
+    # red_avg shape: [batch_size,lstm_output_dim * 2]
     return red_avg
 
 
@@ -563,9 +596,9 @@ if __name__ == '__main__':
         session_conf = tf.ConfigProto(
             allow_soft_placement=True,
             log_device_placement=False)
-        
+
         session_conf.gpu_options.allow_growth = True
-        
+
         sess = tf.Session(config=session_conf)
         with sess.as_default():
             # build model
